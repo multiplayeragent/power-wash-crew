@@ -1,0 +1,22 @@
+{
+  "name": "Power Wash Crew",
+  "genre": "sim",
+  "dim": "3D",
+  "mode": "Co-op",
+  "players": "1–4",
+  "hook": "Blast a filthy backyard clean. Ding at 100%!",
+  "how": "Spray the fence, deck, car, gnome and playground until each one dings at 100%. The wide fan clears grime fast, but caked mud needs the turbo jet; clean the whole yard together for three stars.",
+  "controls": "WASD to walk, hold the mouse on dirt to spray, Q or right-click to switch nozzle; touch: left thumb walks, touch dirt to spray, FAN/JET button",
+  "uses": [
+    ["Host-run rules", "The host's browser keeps every object's dirt, dings finished objects and runs the clock; if it leaves, the next player takes over."],
+    ["Live sync", "Everyone sees the same dirt wash away as anyone sprays: your own spray shows at once."],
+    ["Bots", "Bot washers pick a surface and sweep it row by row until enough people join."],
+    ["Leaderboard", "The most grime each player blasted in one yard."],
+    ["Live ops", "Make every nozzle stronger with no new deploy; an event's title shows on screen."]
+  ],
+  "ideas": [
+    "Add a soap nozzle that loosens caked mud so the fan can clear it",
+    "Hide a gold coin under the dirt on every object",
+    "Make it a pirate ship deck covered in barnacles"
+  ]
+}

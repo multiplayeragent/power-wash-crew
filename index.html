@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Power Wash Crew</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #bfe3f7; }
+  body { font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #fff; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; touch-action: none; cursor: crosshair; }
+  .hud { position: fixed; pointer-events: none; text-shadow: 0 2px 4px #0009; font-weight: 800; }
+  #top { top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); }
+  #clock { font-size: 14px; }
+  #grime { font-size: 30px; line-height: 1.1; color: #9ff0ff; }
+  #grime small { font-size: 13px; color: #fff; margin-left: 6px; }
+  #noz { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 10px; background: #0000004d; font-size: 13px; letter-spacing: .05em; }
+  #noz b { color: #ffd23f; }
+  #objs { top: max(10px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 168px; padding: 6px 10px 8px; border-radius: 12px; background: #12384f66; font-size: 12px; }
+  #objs div { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  #objs span { width: 66px; } #objs em { width: 34px; text-align: right; font-style: normal; font-variant-numeric: tabular-nums; }
+  #objs b { flex: 1; height: 8px; border-radius: 4px; background: #ffffff33; overflow: hidden; } #objs b i { display: block; height: 100%; background: linear-gradient(90deg, #4cc9f0, #9ff0ff); }
+  #objs .done { color: #b6ff9e; } #objs .done b i { background: #7ee081; }
+  #event { top: calc(max(10px, env(safe-area-inset-top)) + 128px); right: max(12px, env(safe-area-inset-right)); padding: 4px 10px; border-radius: 10px; background: #ff5a5fdd; font-size: 13px; text-shadow: none; }
+  #event:empty { display: none; }
+  #status { left: 16px; right: 16px; top: calc(max(10px, env(safe-area-inset-top)) + 110px); text-align: center; font-size: 17px; }
+  #status small { display: block; font-size: 13px; font-weight: 600; }
+  #status .warn { color: #ffd6a5; }
+  #toast { left: 16px; right: 16px; top: 30%; text-align: center; font-size: 36px; color: #fff4a8; opacity: 0; transform: translateY(10px) scale(.9); transition: opacity .3s, transform .3s; }
+  #toast small { display: block; font-size: 15px; color: #fff; }
+  #toast.on { opacity: 1; transform: none; }
+  #hint { left: 16px; right: 16px; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 26px); text-align: center; font-size: 14px; transition: opacity .8s; }
+  #hint span { display: inline-block; padding: 7px 14px; border-radius: 14px; background: #0000005c; }
+  #net { bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; opacity: .85; white-space: nowrap; }
+  #stick { position: fixed; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 2px solid #ffffff99; background: #ffffff1f; pointer-events: none; }
+  #stick i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: #ffffffaa; }
+  #nozBtn { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 30px); width: 76px; height: 76px; border-radius: 50%; border: 3px solid #ffffffcc; background: #1b6fa8cc; color: #fff; font: 900 15px system-ui, sans-serif; touch-action: none; }
+  #nozBtn small { display: block; font-size: 10px; font-weight: 700; opacity: .8; }
+  #over { position: fixed; inset: 0; display: grid; place-items: center; background: #0006; }
+  .card { box-sizing: border-box; width: min(380px, calc(100vw - 32px)); max-height: 88vh; overflow: auto; padding: 18px; border-radius: 18px; background: #16405a; border: 1px solid #ffffff2a; text-align: center; }
+  .card h2 { margin: 0 0 2px; font-size: 24px; }
+  .card .stars { font-size: 30px; color: #ffd23f; letter-spacing: 4px; }
+  .card h3 { margin: 14px 0 4px; font-size: 12px; color: #9ff0ff; text-align: left; text-transform: uppercase; letter-spacing: .06em; }
+  .card p { margin: 4px 0 0; font-size: 14px; opacity: .9; }
+  .card ol { margin: 0; padding-left: 24px; text-align: left; font-size: 14px; }
+  .card li { margin: 2px 0; } .card li span { float: right; font-variant-numeric: tabular-nums; }
+  .card li.me { color: #9ff0ff; font-weight: 800; } .card li i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+  button.go { width: 100%; min-height: 48px; margin-top: 14px; border: 0; border-radius: 14px; background: #ffd23f; color: #3a2a00; font: 900 17px system-ui, sans-serif; cursor: pointer; }
+  .touch #hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 124px); }
+  [hidden] { display: none !important; }
+  .attract .hud, .attract #stick, .attract #nozBtn { display: none !important; }
+  @media (max-width: 520px) { #grime { font-size: 24px; } #objs { width: 138px; font-size: 11px; } #objs span { width: 58px; } #status { font-size: 15px; } #toast { font-size: 28px; } }
+</style>
+<script src="https://cdn.multiplayeragent.com/sdk/mp.global.js"></script>
+<script type="importmap">{ "imports": { "three": "./libs/three.module.min.js" } }</script>
+</head>
+<body>
+<div class="hud" id="top"><div id="clock"></div><div id="grime"></div><div id="noz"></div></div>
+<div class="hud" id="objs"></div>
+<div class="hud" id="event"></div>
+<div class="hud" id="status"></div>
+<div class="hud" id="toast"></div>
+<div class="hud" id="hint"></div>
+<div class="hud" id="net">Connecting…</div>
+<div id="stick" hidden><i></i></div>
+<button id="nozBtn" hidden>FAN<small>tap: jet</small></button>
+<div id="over" hidden><div class="card">
+  <h2 id="overTitle">Sparkling!</h2><div class="stars" id="overStars"></div><p id="overSub"></p>
+  <h3>The crew</h3><ol id="results"></ol>
+  <h3>Most grime blasted in one yard</h3><ol id="board"><li>Loading…</li></ol>
+  <button class="go" id="again">Play again</button><p id="overNext"></p>
+</div></div>
+<script type="module">
+/* ═══ POWER WASH CREW · a Multiplayer Agent starter ═════════════════════════════════════
+ * Blast a filthy backyard clean with pressure washers. Co-op, 1–4 players; bot washers help.
+ *
+ * WHERE THINGS ARE (search for the "── " headers):
+ *   CONFIG ........ nozzles (size, power, range), how clean is "done", stars, bots, the wire
+ *   CONNECTION .... MP_CONNECT, joining, the offline room, who is host, live ops
+ *   YARD .......... where the fence, deck, car, gnome and playground stand; what you can walk into
+ *   SCENE ......... renderer, lights, lawn, house, trees, the washer cart
+ *   SURFACES ...... a washable surface = a mesh + its dirt grid; the five objects built from them
+ *   DIRT .......... dirt levels per cell, packing, reading/writing the shared fields, my overrides
+ *   WASHING ....... spraying a dab (the same for me, bots and everyone's preview)
+ *   JOB (HOST) .... a yard job: dirty it up, take wash intents, ding finished objects, results
+ *   BOTS (HOST) ... bot washers: pick a surface, stand in front of it, sweep it row by row
+ *   ME ............ walking, aiming through the camera, spraying, sending my cleaning
+ *   OTHERS ........ other washers eased between snapshots, their spray drawn and previewed
+ *   EFFECTS ....... water streams, splashes, glints, the 100% ding, pop-up text
+ *   HUD & RESULTS . clock, grime, object meters, status, results card, leaderboard, sound
+ *   INPUT ......... keys and mouse; touch stick, spray finger and the nozzle button
+ *   MAIN LOOP ..... frame(), the camera, start()
+ *
+ * HOW THE MULTIPLAYER WORKS (a relay room: no server code):
+ *   - Every washable surface is a grid of cells, each 0 (clean) to 3 (caked mud). An object's
+ *     cells are packed 2 bits each into ONE shared field `o0`…`o4`: {v, j: job id, d: done, g}.
+ *   - Each player writes its OWN entity: `k` (one JSON field: position, facing, spraying,
+ *     nozzle, the surface + spot it aims at) about 12 times a second, `n`/`c` (name, color)
+ *     once and `hb` (heartbeat) once a second.
+ *   - You wash on your own screen at once: cells under your spray lose a level right away (an
+ *     override on top of the host's grid). Every 100ms you send the host "wash" {j, w: [object,
+ *     cell, new level, …]}. Dirt only goes down, so the host keeps the LOWER level and credits
+ *     you for each level removed; resending is harmless. Overrides the host hasn't taken after
+ *     2s are sent again (the host may have changed).
+ *   - The HOST is the lowest sessionId among live players (heartbeat seen in the last 3s),
+ *     worked out every frame. It owns the dirt grids, runs the bots (their spray goes straight
+ *     into its grids) and writes `job` (id, v, phase, seed, start time, everyone's grime, the
+ *     results: ONE JSON field, `v` only goes up), the object fields and `bots` (~10/s).
+ *     A new host adopts all of it from state and carries on.
+ *   - Everyone previews everyone else's spray from their snapshots (drawn until the host's grid
+ *     has it, or 2.5s), so other washers clean smoothly instead of in steps.
+ *   - An object 98.5% clean "dings": the host wipes its last specks and sets `d`; every screen
+ *     sees `d` flip and plays the ding. All five done = the job ends; results, then a new yard.
+ *   - Leaderboard "grime-blasted": the most dirt levels a player removed in one yard.
+ *   - Live ops: `washPower` multiplies every nozzle; running events show top right.
+ *   - ?attract plays offline with bot washers only (the preview video is recorded from it).
+ */
+import * as THREE from "three";
+
+// ── CONFIG ──────────────────────────────────────────────────────────────────────────
+const CONFIG = {
+  seats: 4,                // bot washers fill the crew up to this many
+  speed: 4.2,              // walking speed (m/s)
+  sprayWalk: 0.55,         // share of that speed while spraying
+  fan: { r: 0.62, rate: 2.4, range: 4.4, caked: false }, // wide fan: radius (m), levels/s at its middle, reach (m); can't shift caked mud
+  jet: { r: 0.24, rate: 8.5, range: 7.0, caked: true },  // turbo jet: small, strong, long, cuts caked mud
+  fanOnCaked: 0.08,        // the fan does only this share of its work on caked mud (level 3): switch to the jet
+  doneAt: 0.985,           // an object this clean dings and its last specks flake off
+  stars: [150000, 240000], // team time for 3 stars and for 2 stars
+  resultsMs: 12000,        // the results card, then the next yard
+  washPower: 1,            // live ops: multiplies every nozzle's power
+  botPower: 0.9,           // bots wash at this share of a player's power
+  botPace: 0.85,           // ... and walk at this share of a player's speed
+  botStuckMs: 3500,        // a bot gives up on a spot it can't clean in this long
+  peekMs: 2500,            // how long someone else's previewed spray shows before the host's grid must have it
+  sendMs: 100,             // how often I send my cleaning to the host
+  resendMs: 2000,          // cleaning the host hasn't taken after this long is sent again
+  board: "grime-blasted",  // leaderboard: most dirt levels removed in one yard
+};
+const NOZ = [CONFIG.fan, CONFIG.jet];
+const BOT_NAMES = ["Suds", "Misty", "Spritz", "Bubbles", "Splash", "Drizzle", "Foam", "Rinse"];
+const COLORS = ["#ff5a5f", "#3fa7ff", "#ffb627", "#b57bff", "#2ec4b6", "#ff8a3d", "#ff6fb5", "#8ac926", "#3b5bdb", "#f1f1f1"];
+
+// ── CONNECTION ──────────────────────────────────────────────────────────────────────
+// The builder fills these in for this game. Downloaded from GitHub? Put your own pk_ key here.
+const MP_CONNECT = {
+  key: 'pk_REPLACE_ME',
+  room: 'power-wash-crew',
+  endpoint: 'wss://live.multiplayeragent.com',
+  apiUrl: 'https://api.multiplayeragent.com',
+};
+const ATTRACT = new URLSearchParams(location.search).has("attract");
+const TEST = new URLSearchParams(location.search).has("test");
+if (ATTRACT) Object.assign(CONFIG, { seats: 6, resultsMs: 1500, doneAt: 0.95, botPower: 1.5, botPace: 1.1 });
+
+/** Same shape as the SDK client, kept in this tab: offline play and ?attract. */
+function localRoom() {
+  const id = "local", state = { entities: { players: { [id]: {} } }, shared: {} }, subs = [];
+  let queued = false;
+  const emit = () => { if (!queued) { queued = true; queueMicrotask(() => { queued = false; subs.forEach((f) => f(state)); }); } };
+  const put = (o, k, v) => { if (typeof k === "object") Object.assign(o, k); else o[k] = v; emit(); };
+  return {
+    sessionId: id, state, offline: true, live: { config: {}, active: [] },
+    me: { set: (k, v) => put(state.entities.players[id], k, v) },
+    setShared: (k, v) => put(state.shared, k, v),
+    onState: (f) => { subs.push(f); f(state); }, onJoin() {}, onLeave() {}, on() {}, send() {}, onLive() {},
+    onDisconnect() {}, onReconnect() {}, leave: async () => {},
+  };
+}
+async function connect() {
+  if (ATTRACT || typeof MP === "undefined") return localRoom();
+  try {
+    const mp = await Promise.race([MP.join({ ...MP_CONNECT }), new Promise((_, no) => setTimeout(() => no(new Error("timed out")), 10000))]);
+    window.mp = mp; // the builder calls window.mp.leave() when the page closes
+    return mp;
+  } catch (e) {
+    console.warn("Playing offline:", e && e.message);
+    return localRoom();
+  }
+}
+const parse = (v, fb) => { if (typeof v !== "string") return fb; try { return JSON.parse(v); } catch { return fb; } };
+let net = null, S = { entities: { players: {} }, shared: {} }, reconnecting = false;
+const memo = new Map();
+/** A JSON value from state, parsed once per change (read-only: never mutate what this returns). */
+function parseOnce(key, raw, fallback) { const m = memo.get(key); if (m && m.raw === raw) return m.v; const v = parse(raw, fallback); memo.set(key, { raw, v }); return v; }
+const shared = (key, fallback) => parseOnce("shared:" + key, S.shared[key], fallback);
+const seenHb = new Map();
+/** Players whose heartbeat moved in the last 3s (plus me), sorted by sessionId. */
+function livePlayers() {
+  const now = performance.now(), out = [];
+  for (const [id, p] of Object.entries(S.entities.players || {})) {
+    const s = seenHb.get(id);
+    if (!s || s.hb !== p.hb) seenHb.set(id, { hb: p.hb, at: now });
+    if (id === net.sessionId || now - seenHb.get(id).at < 3000) out.push(id);
+  }
+  return out.sort();
+}
+let frameAt = 0, wokeAt = -1e9; // my loop's last frame, and when it last woke from a stall (a frozen or background tab)
+/** Never while my own loop is stalled, nor for 0.7s after it wakes: the room moved on without me, so the newer state lands first. */
+const isHost = () => livePlayers()[0] === net.sessionId && performance.now() - frameAt < 1000 && performance.now() - wokeAt > 700;
+/** A live-ops tunable: the owner's live config if it has one of the right type, else CONFIG. */
+function liveCfg(k) { const v = net && net.live && net.live.config ? net.live.config[k] : undefined; return typeof v === typeof CONFIG[k] ? v : CONFIG[k]; }
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const rnd = (a, b) => a + Math.random() * (b - a), pick = (list) => list[Math.floor(Math.random() * list.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+// ── YARD ────────────────────────────────────────────────────────────────────────────
+// x runs east (right on screen), z runs south (toward the camera), y is up. Meters.
+const WALK = { x0: -13.6, x1: 13.6, z0: -7.9, z1: 7.6 };    // where anyone can walk
+const DECK = { x0: -14, x1: -8, z0: -4.5, z1: 2.5, h: 0.42 }; // a raised deck by the house: you can walk on it
+const CAR = { x: 8, z: 3 };                                  // the car's middle (it is 4.2 long, 1.9 wide)
+const GNOME = { x: -4.2, z: 3.4 };                           // a giant garden gnome
+const PLAY = { x: 1.2, z: -5.2 };                            // the playhouse tower; its slide runs east
+const CART = { x: -12.2, z: 5.6 };                           // the pressure-washer cart (just for looks)
+const SOLIDS = [ // nobody walks through these: { x, z, r } circles and { x0, x1, z0, z1 } boxes
+  { x0: CAR.x - 2.15, x1: CAR.x + 2.15, z0: CAR.z - 0.97, z1: CAR.z + 0.97 },
+  { x: GNOME.x, z: GNOME.z, r: 0.62 },
+  { x0: PLAY.x - 0.82, x1: PLAY.x + 0.82, z0: PLAY.z - 0.82, z1: PLAY.z + 0.82 },
+  { x0: PLAY.x + 0.82, x1: PLAY.x + 3.6, z0: PLAY.z - 0.4, z1: PLAY.z + 0.4 },
+  { x: CART.x, z: CART.z, r: 0.55 },
+];
+const onDeck = (x, z) => x <= DECK.x1 && z >= DECK.z0 && z <= DECK.z1;
+const groundY = (x, z) => (onDeck(x, z) ? DECK.h : 0);
+/** Keep a washer (anything with x, z) out of the solids and inside the yard. */
+function collide(m, R = 0.34) {
+  for (const s of SOLIDS) {
+    if (s.r !== undefined) {
+      const dx = m.x - s.x, dz = m.z - s.z, d = Math.hypot(dx, dz), min = s.r + R;
+      if (d < min && d > 1e-4) { m.x = s.x + (dx / d) * min; m.z = s.z + (dz / d) * min; }
+    } else {
+      const cx = clamp(m.x, s.x0, s.x1), cz = clamp(m.z, s.z0, s.z1), dx = m.x - cx, dz = m.z - cz, d = Math.hypot(dx, dz);
+      if (d >= R) continue;
+      if (d > 1e-4) { m.x = cx + (dx / d) * R; m.z = cz + (dz / d) * R; }
+      else { const o = [[s.x0 - R, m.z], [s.x1 + R, m.z], [m.x, s.z0 - R], [m.x, s.z1 + R]].sort((a, b) => Math.hypot(a[0] - m.x, a[1] - m.z) - Math.hypot(b[0] - m.x, b[1] - m.z))[0]; m.x = o[0]; m.z = o[1]; }
+    }
+  }
+  m.x = clamp(m.x, WALK.x0, WALK.x1); m.z = clamp(m.z, WALK.z0, WALK.z1);
+}
+
+// ── SCENE ───────────────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#bfe3f7");
+scene.fog = new THREE.Fog("#bfe3f7", 45, 95);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 200);
+function fit() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener("resize", fit); addEventListener("orientationchange", fit); fit();
+scene.add(new THREE.HemisphereLight("#ffffff", "#7d9a62", 1.4));
+const sun = new THREE.DirectionalLight("#fff4de", 2.0);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
+Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 18, bottom: -18, near: 1, far: 90 });
+sun.position.set(-14, 30, 16); scene.add(sun, sun.target);
+function canvasTex(w, h, paint, rx, ry) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; paint(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (rx) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); }
+  return t;
+}
+const mat = (color, more) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...more });
+const add = (geo, m, x, y, z, shadow = true, parent = scene) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = shadow; o.receiveShadow = true; parent.add(o); return o; };
+const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), V2 = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), EU = new THREE.Euler();
+const BLOCK = []; // meshes the aim ray stops at without washing anything (the lawn, the house, the car's hidden faces…)
+const seeded = mulberry32(42);
+// The lawn, a paver path from the deck to the car's gravel pad, flower beds along the front edge.
+const lawnTex = canvasTex(512, 512, (c, w, h) => {
+  c.fillStyle = "#7cbf5a"; c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 4000; i++) { c.fillStyle = seeded() < 0.5 ? "#72b552" : "#88c966"; c.fillRect(seeded() * w, seeded() * h, 2, 5); }
+}, 8, 6);
+const lawn = add(new THREE.PlaneGeometry(60, 44).rotateX(-Math.PI / 2), mat("#ffffff", { map: lawnTex, roughness: 1 }), 0, 0, 0, false);
+BLOCK.push(lawn);
+const gravel = canvasTex(128, 128, (c, w, h) => { c.fillStyle = "#c9c0ad"; c.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++) { c.fillStyle = pick(["#b3aa96", "#ddd5c2", "#a89f8b"]); c.fillRect(Math.random() * w, Math.random() * h, 3, 3); } }, 3, 2);
+add(new THREE.PlaneGeometry(6.2, 3.6).rotateX(-Math.PI / 2), mat("#ffffff", { map: gravel, roughness: 1 }), CAR.x, 0.01, CAR.z, false);
+const paver = mat("#d8d2c4", { roughness: 0.95 });
+for (let x = -7.4; x < 4.8; x += 0.95) add(new THREE.BoxGeometry(0.75, 0.04, 0.75), paver, x, 0.02, 0.4 + Math.sin(x * 0.7) * 0.5, false);
+const bedMat = mat("#6b4a33", { roughness: 1 });
+add(new THREE.BoxGeometry(27, 0.14, 0.8), bedMat, 0, 0.07, 8.7, false);
+const bloom = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.11, 0), mat("#ffffff", { flatShading: true }), 90);
+for (let k = 0; k < 90; k++) { bloom.setMatrixAt(k, M4.makeTranslation(-13 + k * 0.29, 0.22, 8.5 + seeded() * 0.4)); bloom.setColorAt(k, new THREE.Color(pick(["#ff4d6d", "#ffd23f", "#ffffff", "#c77dff", "#ff8fab"]))); }
+scene.add(bloom);
+// The house on the west side (its back wall, a door onto the deck, windows) and a hedge on the east.
+const siding = canvasTex(512, 256, (c, w, h) => {
+  c.fillStyle = "#e9dcc3"; c.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 14) { c.fillStyle = "#d6c7aa"; c.fillRect(0, y, w, 2); }
+  for (const x of [40, 330]) { c.fillStyle = "#ffffff"; c.fillRect(x - 6, 60, 92, 92); c.fillStyle = "#8fc6e6"; c.fillRect(x, 66, 80, 80); c.fillStyle = "#ffffff"; c.fillRect(x + 38, 66, 4, 80); c.fillRect(x, 104, 80, 4); }
+  c.fillStyle = "#ffffff"; c.fillRect(196, 70, 76, 186); c.fillStyle = "#4f7a8c"; c.fillRect(202, 76, 64, 180); c.fillStyle = "#ffd23f"; c.beginPath(); c.arc(256, 170, 5, 0, 7); c.fill();
+});
+const houseWall = add(new THREE.BoxGeometry(1, 4.6, 22), [mat("#fff", { map: siding }), mat("#e9dcc3"), mat("#e9dcc3"), mat("#e9dcc3"), mat("#e9dcc3"), mat("#e9dcc3")], -14.7, 2.3, -0.8);
+houseWall.material[0].map.rotation = 0; BLOCK.push(houseWall);
+add(new THREE.BoxGeometry(2.4, 0.3, 22.6), mat("#7a4b3a"), -14.4, 4.7, -0.8);
+const hedge = add(new THREE.BoxGeometry(1.1, 1.3, 17), mat("#3f8f45", { roughness: 1 }), 14.6, 0.65, -0.3); BLOCK.push(hedge);
+// Trees behind the fence.
+const trees = [];
+for (let k = 0; k < 26; k++) trees.push([-17 + k * 1.35 + seeded() * 0.6, -10.6 - seeded() * 3.5, 0.9 + seeded() * 0.6]);
+const crowns = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.7, 0), mat("#4caf50", { flatShading: true }), trees.length);
+const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.3, 2.2, 6), mat("#7a5230"), trees.length);
+trees.forEach(([x, z, s], k) => { crowns.setMatrixAt(k, M4.compose(V.set(x, 2.9 * s + 0.4, z), Q.identity(), SC.set(s, s * 1.1, s))); crowns.setColorAt(k, new THREE.Color(["#4caf50", "#5cbf60", "#3e9e4a", "#7cc35a"][k % 4])); trunks.setMatrixAt(k, M4.compose(V.set(x, 1.1 * s, z), Q.identity(), SC.set(s, s, s))); });
+crowns.castShadow = trunks.castShadow = true; scene.add(crowns, trunks);
+// The pressure-washer cart and its coiled hose.
+const cart = new THREE.Group(); cart.position.set(CART.x, 0, CART.z); scene.add(cart);
+add(new THREE.BoxGeometry(0.8, 0.6, 0.55), mat("#ffc533", { roughness: 0.5 }), 0, 0.55, 0, true, cart);
+add(new THREE.BoxGeometry(0.5, 0.25, 0.4), mat("#30343c"), 0, 0.97, 0, true, cart);
+for (const s of [1, -1]) add(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 14).rotateX(Math.PI / 2), mat("#22252b"), -0.2, 0.22, s * 0.32, true, cart);
+add(new THREE.TorusGeometry(0.28, 0.05, 6, 18), mat("#2a2d33"), 0.44, 0.55, 0, true, cart).rotation.y = Math.PI / 2;
+
+// ── SURFACES ────────────────────────────────────────────────────────────────────────
+// A washable surface is a mesh (its clean look) with two see-through layers on top: grime
+// (levels 1–2, and under level 3) and caked mud (level 3). Each layer's opacity per cell
+// comes from a small texture, one texel per cell, that the dirt grid paints.
+const OBJS = [], SURFS = [];
+const MUD = canvasTex(256, 256, (c, w, h) => { // caked mud: dark, lumpy, cracked
+  c.fillStyle = "#4a3220"; c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 260; i++) { c.fillStyle = pick(["#3b2818", "#5a3d26", "#664730", "#2f2012"]); c.beginPath(); c.arc(Math.random() * w, Math.random() * h, rnd(3, 14), 0, 7); c.fill(); }
+  c.strokeStyle = "#24170c"; c.lineWidth = 1.5; for (let i = 0; i < 40; i++) { c.beginPath(); let x = Math.random() * w, y = Math.random() * h; c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += rnd(-16, 16); y += rnd(-16, 16); c.lineTo(x, y); } c.stroke(); }
+}, 1, 1);
+/** A grime texture: a base color with blotches and streaks, a little see-through here and there. */
+function grimeTex(base, spots) {
+  return canvasTex(256, 256, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 340; i++) { c.globalAlpha = rnd(0.25, 0.8); c.fillStyle = pick(spots); c.beginPath(); c.ellipse(Math.random() * w, Math.random() * h, rnd(3, 18), rnd(3, 12), rnd(0, 3), 0, 7); c.fill(); }
+    c.globalAlpha = 0.35; for (let i = 0; i < 60; i++) { c.fillStyle = pick(spots); c.fillRect(Math.random() * w, Math.random() * h, rnd(1, 3), rnd(10, 40)); }
+    c.globalAlpha = 1;
+  }, 1, 1);
+}
+const GRIME = {
+  moss: { tex: grimeTex("#6c7a3c", ["#55632b", "#7f8d48", "#4a5426", "#8b8a55"]), col: "#6c7a3c" },
+  mud: { tex: grimeTex("#7a5a3a", ["#5e432a", "#8f6c48", "#6b4f33", "#a08060"]), col: "#7a5a3a" },
+  soot: { tex: grimeTex("#5e5a50", ["#47443d", "#716b5e", "#3d3a34", "#7b7a6a"]), col: "#5e5a50" },
+};
+const ALPHA_A = [0, 185, 230, 245], ALPHA_B = [0, 0, 0, 255]; // each layer's opacity at levels 0..3
+/** A new object: { name, label position, grime kind, its surfaces, its grid }. */
+function newObj(name, label, grime, mudLow) {
+  const o = { i: OBJS.length, name, label, grime: GRIME[grime], mudLow, surfs: [], mats: [], n: 0, g: null, shown: null, surfOf: null, ov: new Map(),
+    v: 0, j: 0, d: 0, raw: null, seen: false, redraw: true, dirty: false, lastW: 0, cleanN: 0, flash: 0 };
+  OBJS.push(o); return o;
+}
+/** Make `mesh` washable. kind "plane" {w, h}, "cyl" (and cones) {rt, rb, h, t0, tl} or "sphere" {r, p0, pl, t0, tl}. */
+function addSurf(o, mesh, kind, p, cellM) {
+  const su = kind === "plane" ? p.w : kind === "cyl" ? (p.tl * (p.rt + p.rb)) / 2 : p.pl * p.r;
+  const sv = kind === "plane" ? p.h : kind === "cyl" ? Math.hypot(p.h, p.rb - p.rt) : p.tl * p.r;
+  const cols = Math.max(3, Math.round(su / cellM)), rows = Math.max(3, Math.round(sv / cellM)), n = cols * rows;
+  const s = { id: SURFS.length, o, si: o.surfs.length, kind, p, mesh, cols, rows, n, off: o.n, su, sv, cw: su / cols, ch: sv / rows, wear: new Float32Array(n), texDirty: false };
+  const mask = (data) => { const t = new THREE.DataTexture(data, cols, rows); t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t; };
+  s.dataA = new Uint8Array(n * 4); s.dataB = new Uint8Array(n * 4); s.maskA = mask(s.dataA); s.maskB = mask(s.dataB);
+  const layer = (src, alphaMap, offset) => {
+    const t = src.clone(); t.repeat.set(su / 1.3, sv / 1.3); t.needsUpdate = true;
+    const m = new THREE.Mesh(mesh.geometry, new THREE.MeshStandardMaterial({ map: t, alphaMap, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -offset, polygonOffsetUnits: -2 * offset }));
+    m.receiveShadow = true; m.renderOrder = offset; m.raycast = () => {}; mesh.add(m); return m;
+  };
+  layer(o.grime.tex, s.maskA, 1); layer(MUD, s.maskB, 2);
+  mesh.userData.surf = s; mesh.receiveShadow = true;
+  if (!o.mats.includes(mesh.material)) o.mats.push(mesh.material);
+  o.surfs.push(s); o.n += n; SURFS.push(s);
+  return s;
+}
+/** A flat washable panel: w × h, centered at `at`, its u along X and v along Y (the normal is X × Y). */
+function panel(o, w, h, cellM, at, X, Y, material) {
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material), x = new THREE.Vector3(...X), y = new THREE.Vector3(...Y);
+  mesh.quaternion.setFromRotationMatrix(M4.makeBasis(x, y, new THREE.Vector3().crossVectors(x, y)));
+  mesh.position.set(...at); scene.add(mesh);
+  return addSurf(o, mesh, "plane", { w, h }, cellM);
+}
+/** Where a cell's (u, v) is in the world, and which way the surface faces there. */
+function surfPoint(s, u, v, outP, outN) {
+  const p = s.p;
+  if (s.kind === "plane") { outP.set((u - 0.5) * p.w, (v - 0.5) * p.h, 0); outN.set(0, 0, 1); }
+  else if (s.kind === "cyl") { const th = p.t0 + u * p.tl, rr = p.rb + v * (p.rt - p.rb); outP.set(rr * Math.sin(th), (v - 0.5) * p.h, rr * Math.cos(th)); outN.set(Math.sin(th), (p.rb - p.rt) / p.h, Math.cos(th)).normalize(); }
+  else { const ph = p.p0 + u * p.pl, th = p.t0 + (1 - v) * p.tl; outP.set(-p.r * Math.cos(ph) * Math.sin(th), p.r * Math.cos(th), p.r * Math.sin(ph) * Math.sin(th)); outN.copy(outP).normalize(); }
+  outP.applyMatrix4(s.mesh.matrixWorld); outN.transformDirection(s.mesh.matrixWorld);
+  return outP;
+}
+// 1. THE FENCE: four panels of boards along the back. Under the moss there's a painted mural (it changes each yard).
+const fence = newObj("Fence", [0, 2.7, -8.4], "moss", 1.2);
+const fenceCv = document.createElement("canvas"); fenceCv.width = 2048; fenceCv.height = 128;
+const fenceTex = new THREE.CanvasTexture(fenceCv); fenceTex.colorSpace = THREE.SRGBColorSpace; fenceTex.anisotropy = 4;
+const fenceMaps = [];
+add(new THREE.BoxGeometry(28.2, 1.8, 0.08), mat("#c9955f"), 0, 0.95, -8.66);
+for (let k = 0; k < 4; k++) {
+  const x0 = -14 + k * 7 + 0.1, map = fenceTex.clone(); map.repeat.set(6.8 / 28, 1); map.offset.set((x0 + 14) / 28, 0); fenceMaps.push(map);
+  panel(fence, 6.8, 1.8, 0.17, [x0 + 3.4, 0.95, -8.6], [1, 0, 0], [0, 1, 0], mat("#ffffff", { map, roughness: 0.85 }));
+}
+for (let k = 0; k <= 4; k++) { const post = add(new THREE.BoxGeometry(0.22, 2.05, 0.22), mat("#b07c4a"), -14 + k * 7, 1.02, -8.5); BLOCK.push(post); }
+add(new THREE.BoxGeometry(28.4, 0.1, 0.24), mat("#b07c4a"), 0, 1.9, -8.6);
+// 2. THE DECK: honey planks, its top and two edges.
+const deck = newObj("Deck", [-11, 1.7, -1], "mud", 0.4);
+const plankTex = canvasTex(256, 256, (c, w, h) => {
+  for (let x = 0; x < w; x += 32) { c.fillStyle = pick(["#d9a066", "#cf9559", "#e0aa70", "#d49a5e"]); c.fillRect(x, 0, 32, h); c.fillStyle = "#a8703f"; c.fillRect(x, 0, 2, h); for (let y = rnd(0, 120); y < h; y += rnd(90, 170)) c.fillRect(x, y, 32, 2); }
+  c.globalAlpha = 0.2; for (let i = 0; i < 300; i++) { c.fillStyle = "#b67d48"; c.fillRect(Math.random() * w, Math.random() * h, 1, rnd(6, 20)); } c.globalAlpha = 1;
+}, 1, 1);
+const deckTop = plankTex.clone(); deckTop.repeat.set(3, 3.5); deckTop.needsUpdate = true;
+const deckMat = mat("#ffffff", { map: deckTop, roughness: 0.75 }), deckSide = mat("#c98f55");
+add(new THREE.BoxGeometry(6, DECK.h, 7), deckSide, (DECK.x0 + DECK.x1) / 2, DECK.h / 2, (DECK.z0 + DECK.z1) / 2);
+panel(deck, 6, 7, 0.17, [(DECK.x0 + DECK.x1) / 2, DECK.h + 0.002, (DECK.z0 + DECK.z1) / 2], [1, 0, 0], [0, 0, -1], deckMat);
+panel(deck, 6, DECK.h, 0.14, [(DECK.x0 + DECK.x1) / 2, DECK.h / 2, DECK.z1 + 0.002], [1, 0, 0], [0, 1, 0], deckSide);
+panel(deck, 7, DECK.h, 0.14, [DECK.x1 + 0.002, DECK.h / 2, (DECK.z0 + DECK.z1) / 2], [0, 0, -1], [0, 1, 0], deckSide);
+// 3. THE CAR: a little hatchback on the gravel. Its paint color changes each yard.
+const car = newObj("Car", [CAR.x, 2.6, CAR.z], "mud", 1.4);
+const paint = mat("#e63946", { roughness: 0.25, metalness: 0.35 }), glass = mat("#2b4a66", { roughness: 0.08, metalness: 0.6 });
+const stripeCv = document.createElement("canvas"); stripeCv.width = 64; stripeCv.height = 64;
+const stripeTex = new THREE.CanvasTexture(stripeCv); stripeTex.colorSpace = THREE.SRGBColorSpace;
+const paintTop = mat("#ffffff", { map: stripeTex, roughness: 0.25, metalness: 0.35 });
+BLOCK.push(add(new THREE.BoxGeometry(4.2, 0.72, 1.9), paint, CAR.x, 0.66, CAR.z), add(new THREE.BoxGeometry(2.2, 0.58, 1.7), glass, CAR.x - 0.25, 1.31, CAR.z));
+const cx = CAR.x, cz = CAR.z;
+panel(car, 4.2, 0.72, 0.15, [cx, 0.66, cz + 0.952], [1, 0, 0], [0, 1, 0], paint);              // south side
+panel(car, 1.25, 1.9, 0.15, [cx + 1.475, 1.022, cz], [1, 0, 0], [0, 0, -1], paintTop);          // hood
+panel(car, 0.75, 1.9, 0.15, [cx - 1.725, 1.022, cz], [1, 0, 0], [0, 0, -1], paintTop);          // hatch top
+panel(car, 2.2, 1.7, 0.15, [cx - 0.25, 1.602, cz], [1, 0, 0], [0, 0, -1], paintTop);            // roof
+panel(car, 2.2, 0.58, 0.15, [cx - 0.25, 1.31, cz + 0.852], [1, 0, 0], [0, 1, 0], glass);        // side windows
+panel(car, 1.9, 0.72, 0.15, [cx + 2.102, 0.66, cz], [0, 0, -1], [0, 1, 0], paint);             // front
+panel(car, 1.9, 0.72, 0.15, [cx - 2.102, 0.66, cz], [0, 0, 1], [0, 1, 0], paint);              // back
+panel(car, 1.7, 0.58, 0.15, [cx + 0.852, 1.31, cz], [0, 0, -1], [0, 1, 0], glass);             // windshield
+panel(car, 1.7, 0.58, 0.15, [cx - 1.352, 1.31, cz], [0, 0, 1], [0, 1, 0], glass);              // back window
+const tyre = mat("#22252b"), chrome = mat("#d8dde3", { roughness: 0.2, metalness: 0.8 });
+for (const [x, z] of [[1.35, 0.92], [-1.35, 0.92], [1.35, -0.92], [-1.35, -0.92]]) { add(new THREE.CylinderGeometry(0.36, 0.36, 0.26, 16).rotateX(Math.PI / 2), tyre, cx + x, 0.36, cz + z); if (z > 0) add(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 14).rotateX(Math.PI / 2), chrome, cx + x, 0.36, cz + 1.06, false); }
+for (const s of [1, -1]) { add(new THREE.BoxGeometry(0.06, 0.16, 0.36), mat("#fff8d0", { emissive: "#fff2a0", emissiveIntensity: 0.4 }), cx + 2.13, 0.82, cz + s * 0.62, false); add(new THREE.BoxGeometry(0.06, 0.14, 0.3), mat("#ff4040"), cx - 2.13, 0.82, cz + s * 0.65, false); }
+// 4. THE GNOME: a giant garden gnome. Only its front (the half you see) gets dirty.
+const gnome = newObj("Gnome", [GNOME.x, 3.4, GNOME.z], "moss", 0.6);
+const half = { t0: -Math.PI / 2, tl: Math.PI };
+/** A round part of the gnome: a full mesh for its back, a washable front half just outside it. */
+function gnomePart(kind, dims, y, color) {
+  const m = mat(color, { roughness: 0.6 });
+  const full = kind === "cyl" ? new THREE.CylinderGeometry(dims.rt, dims.rb, dims.h, 24) : new THREE.SphereGeometry(dims.r, 24, 14);
+  BLOCK.push(add(full, m, GNOME.x, y, GNOME.z));
+  if (kind === "cyl") { const p = { rt: dims.rt + 0.004, rb: dims.rb + 0.004, h: dims.h, ...half }; const mesh = add(new THREE.CylinderGeometry(p.rt, p.rb, p.h, 16, 1, true, p.t0, p.tl), m, GNOME.x, y, GNOME.z, false); return addSurf(gnome, mesh, "cyl", p, 0.085); }
+  const p = { r: dims.r + 0.004, p0: 0, pl: Math.PI, t0: 0, tl: Math.PI };
+  const mesh = add(new THREE.SphereGeometry(p.r, 16, 12, p.p0, p.pl, p.t0, p.tl), m, GNOME.x, y, GNOME.z, false);
+  return addSurf(gnome, mesh, "sphere", p, 0.085);
+}
+add(new THREE.CylinderGeometry(0.7, 0.8, 0.14, 16), mat("#9a9a8e"), GNOME.x, 0.07, GNOME.z);
+gnomePart("cyl", { rt: 0.42, rb: 0.56, h: 0.9 }, 0.59, "#3a6fd8");       // coat
+gnomePart("cyl", { rt: 0.36, rb: 0.02, h: 0.6 }, 1.02, "#f4f1e8");       // beard (a cone pointing down)
+gnomePart("sphere", { r: 0.3 }, 1.42, "#f3c9a2");                        // head
+gnomePart("cyl", { rt: 0.02, rb: 0.46, h: 1.05 }, 2.05, "#e23d3d");      // hat
+add(new THREE.SphereGeometry(0.1, 10, 8), mat("#f0a98a"), GNOME.x, 1.36, GNOME.z + 0.3, false);
+for (const s of [1, -1]) add(new THREE.SphereGeometry(0.035, 8, 6), mat("#1d1d1d"), GNOME.x + s * 0.1, 1.5, GNOME.z + 0.27, false);
+// 5. THE PLAYGROUND: a playhouse on stilts with a roof, and a slide.
+const play = newObj("Playground", [PLAY.x + 1.2, 3.7, PLAY.z], "soot", 0.5);
+const px = PLAY.x, pz = PLAY.z, wood = mat("#b98552"), wallMat = mat("#ffd166", { roughness: 0.7 }), roofMat = mat("#3a86ff", { roughness: 0.6 }), slideMat = mat("#ff7b39", { roughness: 0.3 });
+for (const [x, z] of [[-0.75, -0.75], [0.75, -0.75], [-0.75, 0.75], [0.75, 0.75]]) BLOCK.push(add(new THREE.CylinderGeometry(0.07, 0.07, 2.2, 8), wood, px + x, 1.1, pz + z));
+add(new THREE.BoxGeometry(1.7, 0.12, 1.7), wood, px, 1.2, pz);
+const housing = add(new THREE.BoxGeometry(1.6, 0.85, 1.6), wallMat, px, 1.69, pz - 0.02); BLOCK.push(housing);
+const playWall = canvasTex(128, 64, (c, w, h) => { c.fillStyle = "#ffd166"; c.fillRect(0, 0, w, h); c.fillStyle = "#ef476f"; c.beginPath(); c.arc(w / 2, h / 2, 17, 0, 7); c.fill(); c.fillStyle = "#3d2c1e"; c.beginPath(); c.arc(w / 2, h / 2, 13, 0, 7); c.fill(); c.fillStyle = "#06d6a0"; for (let x = 6; x < w; x += 20) c.fillRect(x, h - 8, 12, 4); });
+panel(play, 1.6, 0.85, 0.11, [px, 1.69, pz + 0.785], [1, 0, 0], [0, 1, 0], mat("#ffffff", { map: playWall, roughness: 0.7 }));
+const RB = 0.7; // the roof's slope (radians)
+panel(play, 1.9, 0.95 / Math.cos(RB), 0.11, [px, 2.12 + Math.tan(RB) * 0.475, pz + 0.475], [1, 0, 0], [0, Math.sin(RB), -Math.cos(RB)], roofMat);
+const back = add(new THREE.PlaneGeometry(1.9, 0.95 / Math.cos(RB)), roofMat, px, 2.12 + Math.tan(RB) * 0.475, pz - 0.475); back.rotation.x = -Math.PI / 2 - RB;
+const gable = new THREE.Shape([new THREE.Vector2(-0.95, 0), new THREE.Vector2(0.95, 0), new THREE.Vector2(0, Math.tan(RB) * 0.95)]);
+for (const s of [1, -1]) add(new THREE.ShapeGeometry(gable).rotateY(Math.PI / 2), wallMat, px + s * 0.8, 2.12, pz, false).material = wallMat.clone();
+const SA = Math.atan2(1.1, 2.7), SL = Math.hypot(1.1, 2.7); // the slide's angle and length
+panel(play, 0.7, SL, 0.11, [px + 0.82 + 1.35, 0.15 + 0.55 + 0.02, pz], [0, 0, -1], [-Math.cos(SA), Math.sin(SA), 0], slideMat);
+for (const s of [1, -1]) { const rail = add(new THREE.BoxGeometry(SL, 0.16, 0.05), slideMat, px + 0.82 + 1.35, 0.15 + 0.55 + 0.1, pz + s * 0.37); rail.rotation.z = -SA; }
+for (let k = 0; k < 4; k++) add(new THREE.BoxGeometry(0.06, 0.06, 0.7), wood, px - 0.82, 0.3 + k * 0.28, pz);
+scene.updateMatrixWorld(true);
+const AIMABLE = [...SURFS.map((s) => s.mesh), ...BLOCK]; // what the aim ray can hit
+for (const o of OBJS) { o.g = new Uint8Array(o.n).fill(2); o.shown = new Uint8Array(o.n).fill(255); o.surfOf = new Uint8Array(o.n); o.surfs.forEach((s) => o.surfOf.fill(s.si, s.off, s.off + s.n)); }
+
+/** Each yard looks a little different under the dirt: the mural on the fence, the car's paint. */
+const MURALS = ["sunflowers", "rainbow", "fish", "stars"];
+const CAR_PAINT = ["#e63946", "#2a9d8f", "#3a86ff", "#ffb703", "#8338ec", "#ff7b00"];
+function reskin(seed) {
+  const rng = mulberry32(seed), g = fenceCv.getContext("2d"), W = fenceCv.width, H = fenceCv.height, kind = MURALS[Math.floor(rng() * MURALS.length)];
+  for (let x = 0; x < W; x += 15) { g.fillStyle = ["#e2b07a", "#d9a56c", "#e8b984"][Math.floor(x / 15) % 3]; g.fillRect(x, 0, 15, H); g.fillStyle = "#b98552"; g.fillRect(x, 0, 1.5, H); }
+  if (kind === "sunflowers") for (let x = 40; x < W; x += 110) { const y = 40 + rng() * 25; g.strokeStyle = "#3f8f3a"; g.lineWidth = 6; g.beginPath(); g.moveTo(x, H); g.lineTo(x, y); g.stroke(); for (let k = 0; k < 10; k++) { g.fillStyle = "#ffcc1d"; g.beginPath(); g.ellipse(x + Math.cos(k * 0.63) * 18, y + Math.sin(k * 0.63) * 18, 11, 6, k * 0.63, 0, 7); g.fill(); } g.fillStyle = "#6b3e1f"; g.beginPath(); g.arc(x, y, 12, 0, 7); g.fill(); }
+  if (kind === "rainbow") ["#ff595e", "#ff924c", "#ffca3a", "#8ac926", "#1982c4", "#6a4c93"].forEach((c, k) => { g.strokeStyle = c; g.lineWidth = 11; g.beginPath(); for (let x = 0; x <= W; x += 8) g.lineTo(x, 34 + k * 11 + Math.sin(x / 120) * 18); g.stroke(); });
+  if (kind === "fish") { g.fillStyle = "#5bc0eb88"; g.fillRect(0, 0, W, H); for (let x = 30; x < W; x += 95) { const y = 30 + rng() * 70, c = pick(["#ff7b00", "#ff4d6d", "#ffd23f", "#9b5de5"]); g.fillStyle = c; g.beginPath(); g.ellipse(x, y, 26, 14, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(x - 22, y); g.lineTo(x - 42, y - 14); g.lineTo(x - 42, y + 14); g.fill(); g.fillStyle = "#fff"; g.beginPath(); g.arc(x + 12, y - 3, 4, 0, 7); g.fill(); } }
+  if (kind === "stars") { g.fillStyle = "#283c7a"; g.fillRect(0, 0, W, H); for (let k = 0; k < 90; k++) { g.fillStyle = pick(["#ffd23f", "#ffffff", "#9ff0ff"]); const x = rng() * W, y = rng() * H, r = 3 + rng() * 6; g.beginPath(); for (let a = 0; a < 10; a++) g.lineTo(x + Math.cos((a * Math.PI) / 5) * (a % 2 ? r * 0.45 : r), y + Math.sin((a * Math.PI) / 5) * (a % 2 ? r * 0.45 : r)); g.fill(); } }
+  for (const m of fenceMaps) m.needsUpdate = true;
+  const col = CAR_PAINT[Math.floor(rng() * CAR_PAINT.length)], s = stripeCv.getContext("2d");
+  paint.color.set(col); s.fillStyle = col; s.fillRect(0, 0, 64, 64);
+  if (rng() < 0.6) { s.fillStyle = "#ffffff"; s.fillRect(0, 22, 64, 7); s.fillRect(0, 35, 64, 7); }
+  stripeTex.needsUpdate = true;
+}
+
+// ── DIRT ────────────────────────────────────────────────────────────────────────────
+// o.g is the host's grid (on the host, its live copy). o.ov holds this screen's overrides: my
+// own washing (until the host has it) and everyone else's previewed spray. o.shown = what is drawn.
+function packGrid(g) { let s = ""; for (let i = 0; i < g.length; i += 4) s += String.fromCharCode((g[i] & 3) | ((g[i + 1] & 3) << 2) | ((g[i + 2] & 3) << 4) | ((g[i + 3] & 3) << 6)); return btoa(s); }
+function unpackGrid(s, n) { const bin = atob(s), g = new Uint8Array(n); for (let i = 0; i < n; i++) g[i] = (bin.charCodeAt(i >> 2) >> ((i & 3) * 2)) & 3; return g; }
+/** Draw one cell at level l (both layers' opacity). */
+function setShown(o, gi, l) {
+  const was = o.shown[gi];
+  if (was === l) return;
+  if (was === 0) o.cleanN--;
+  if (l === 0) o.cleanN++;
+  o.shown[gi] = l;
+  const s = o.surfs[o.surfOf[gi]], k = (gi - s.off) * 4;
+  s.dataA[k] = s.dataA[k + 1] = s.dataA[k + 2] = s.dataA[k + 3] = ALPHA_A[l];
+  s.dataB[k] = s.dataB[k + 1] = s.dataB[k + 2] = s.dataB[k + 3] = ALPHA_B[l];
+  s.texDirty = true;
+}
+/** Redraw a whole object: the host's grid with this screen's overrides on top. */
+function refreshObj(o) {
+  o.redraw = false;
+  for (let gi = 0; gi < o.n; gi++) { const ov = o.ov.get(gi); setShown(o, gi, ov && ov.l < o.g[gi] ? ov.l : o.g[gi]); }
+}
+/** Drop overrides the host's grid has caught up with, and previews that ran out. */
+function pruneOverrides(now) {
+  for (const o of OBJS) for (const [gi, ov] of o.ov) if (o.g[gi] <= ov.l || (!ov.mine && now > ov.until)) { o.ov.delete(gi); if (o.g[gi] !== o.shown[gi]) o.redraw = true; }
+}
+const pct = (o) => (o.d ? 100 : Math.floor((o.cleanN / o.n) * 100));
+/** Take an object's grid from its shared field (when it changed). */
+function readObj(o) {
+  const raw = S.shared["o" + o.i];
+  if (raw === o.raw) return;
+  o.raw = raw;
+  const x = parse(raw, null);
+  if (!x || typeof x.g !== "string") return;
+  let g; try { g = unpackGrid(x.g, o.n); } catch { return; }
+  const wasDone = o.d, wasJob = o.j;
+  Object.assign(o, { g, v: +x.v || 0, j: +x.j || 0, d: x.d ? 1 : 0, redraw: true });
+  if (o.d && !wasDone && o.seen && o.j === wasJob) dingFx(o); // a ding I watched happen (not one done before I came)
+  o.seen = true;
+}
+/** Host: write an object's field. Its `v` only goes up, even over a field another host wrote. */
+function writeObj(o) {
+  const cur = parse(S.shared["o" + o.i], null);
+  o.v = Math.max(o.v, (cur && +cur.v) || 0) + 1;
+  const raw = JSON.stringify({ v: o.v, j: o.j, d: o.d, g: packGrid(o.g) });
+  net.setShared("o" + o.i, raw); o.raw = raw; o.dirty = false; o.lastW = performance.now();
+}
+
+// ── WASHING ─────────────────────────────────────────────────────────────────────────
+// One dab of spray at (u, v) on a surface for dt seconds. mode "host" washes the real grid (the
+// host's own washer and the bots); "mine" washes my screen and queues it for the host; "peek"
+// previews someone else's spray. Every cell under the nozzle builds up wear; at 1 it loses a level.
+const outbox = new Map(); // my washed cells not sent yet: key -> [object, cell, level]
+function washAt(s, u, v, nz, dt, mode, who, power = 1) {
+  const N = NOZ[nz], r = N.r, o = s.o, out = { removed: 0, caked: 0, cleaned: 0 };
+  if (o.d) return out;
+  const cu = u * s.cols - 0.5, cv = v * s.rows - 0.5, rc = r / s.cw, rr = r / s.ch, r2 = r * r;
+  const c0 = Math.max(0, Math.floor(cu - rc)), c1 = Math.min(s.cols - 1, Math.ceil(cu + rc)), r0 = Math.max(0, Math.floor(cv - rr)), r1 = Math.min(s.rows - 1, Math.ceil(cv + rr));
+  const work = N.rate * liveCfg("washPower") * power * dt, now = performance.now();
+  for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
+    const du = (col - cu) * s.cw, dv = (row - cv) * s.ch, d2 = du * du + dv * dv;
+    if (d2 > r2) continue;
+    const c = row * s.cols + col, gi = s.off + c;
+    let l = mode === "host" ? o.g[gi] : o.shown[gi];
+    if (!l) continue;
+    const weak = l === 3 && !N.caked;
+    if (weak) out.caked++;
+    s.wear[c] += work * (1 - d2 / r2) * (weak ? CONFIG.fanOnCaked : 1);
+    if (s.wear[c] < 1) continue;
+    s.wear[c] = 0; l--; out.removed++; if (!l) out.cleaned++;
+    if (mode === "host") { o.g[gi] = l; o.dirty = true; credit(who, 1); }
+    else if (mode === "mine") { o.ov.set(gi, { l, mine: true, until: 0 }); outbox.set(o.i * 65536 + gi, [o.i, gi, l]); }
+    else { const ov = o.ov.get(gi); if (!ov || !ov.mine) o.ov.set(gi, { l, mine: false, until: now + CONFIG.peekMs }); }
+    setShown(o, gi, Math.min(o.shown[gi], l));
+  }
+  return out;
+}
+/** Spray from where the nozzle pointed last frame to where it points now, in small dabs, so a quick sweep leaves no gaps. */
+function sweep(s, from, u, v, nz, dt, mode, who, power) {
+  const same = from && from.s === s, du = same ? (u - from.u) * s.su : 0, dv = same ? (v - from.v) * s.sv : 0, len = Math.hypot(du, dv);
+  const steps = same && len < 2.5 ? clamp(Math.ceil(len / (NOZ[nz].r * 0.5)), 1, 12) : 1, sum = { removed: 0, caked: 0, cleaned: 0 };
+  for (let k = 1; k <= steps; k++) {
+    const f = steps === 1 ? 1 : k / steps, r = washAt(s, same ? from.u + (u - from.u) * f : u, same ? from.v + (v - from.v) * f : v, nz, dt / steps, mode, who, power);
+    sum.removed += r.removed; sum.caked += r.caked; sum.cleaned += r.cleaned;
+  }
+  return sum;
+}
+/** The level drawn at a surface spot (for splash colors). */
+const levelAt = (s, u, v) => s.o.shown[s.off + clamp(Math.floor(v * s.rows), 0, s.rows - 1) * s.cols + clamp(Math.floor(u * s.cols), 0, s.cols - 1)];
+
+// ── JOB (HOST) ──────────────────────────────────────────────────────────────────────
+// The job: { id, v, ph: "on" | "end", seed, at (start), t (team time), ends (results end), sc: { id: [grime, name, color] }, res: [[name, grime, color, id]] }
+const host = { was: false, last: null, bots: new Map(), sc: {}, scDirty: false, lastJob: 0, lastObj: 0, lastBots: 0, checkAt: 0 };
+const hosting = () => isHost() && host.was;
+function job() { const r = shared("job", null); return host.last && hosting() && (!r || host.last.v > r.v) ? host.last : r; }
+function writeJob(d) { d = { ...d, v: Math.max(job()?.v ?? 0, shared("job", null)?.v ?? 0) + 1 }; host.last = d; net.setShared("job", JSON.stringify(d)); return d; }
+function credit(id, n) { host.sc[id] = (host.sc[id] || 0) + n; host.scDirty = true; }
+/** Every washer in the yard: { id, name, color, x, z, h, v, s (spraying), nz, a ([surface, u, v] or 0), p ([x, y, z] aim), bot, mine }. */
+function crews() {
+  const out = [], live = new Set(livePlayers());
+  for (const [id, p] of Object.entries(S.entities.players || {})) {
+    if (id === net.sessionId) { out.push({ id, name: myName, color: myColor, x: me.x, z: me.z, h: me.h, v: me.v, s: me.s, nz: me.nz, mine: true }); continue; }
+    if (!live.has(id)) continue;
+    const k = parseOnce("k:" + id, p.k, null);
+    if (k && typeof k.x === "number") out.push({ id, name: String(p.n ?? "Washer").slice(0, 16), color: p.c || "#ccc", x: k.x, z: k.z, h: k.h || 0, v: k.v || 0, s: k.s ? 1 : 0, nz: k.n ? 1 : 0, a: Array.isArray(k.a) ? k.a : 0, p: Array.isArray(k.p) ? k.p : null });
+  }
+  for (const b of botList()) out.push({ id: b.i, name: b.n, color: b.c, x: b.x, z: b.z, h: b.h, v: b.v || 0, s: b.s ? 1 : 0, nz: b.nz ? 1 : 0, a: Array.isArray(b.a) ? b.a : 0, p: Array.isArray(b.p) ? b.p : null, bot: true });
+  return out;
+}
+/** Dirt for a new yard: smooth blotches of levels 1–3, heavier low down (mud splashes up from the ground). */
+function dirtyUp(o, rng) {
+  o.g = new Uint8Array(o.n);
+  for (const s of o.surfs) {
+    const ph = [rng() * 6.3, rng() * 6.3, rng() * 6.3], f = 0.9 + rng() * 0.8;
+    for (let row = 0; row < s.rows; row++) for (let col = 0; col < s.cols; col++) {
+      const x = col * s.cw, y = row * s.ch, low = s.kind === "plane" && s.mesh.position.y < 1.2 ? 1 - (row + 0.5) / s.rows : 0.3;
+      const n = Math.sin(x * 1.4 * f + ph[0]) + Math.sin(y * 1.9 * f + ph[1]) + Math.sin((x - y) * 0.8 + ph[2]) + (rng() - 0.5) * 0.9;
+      o.g[s.off + row * s.cols + col] = clamp(Math.round(1.55 + n * 0.42 + o.mudLow * low * low), 1, 3);
+    }
+  }
+}
+function startJob(id) {
+  const seed = (Math.random() * 2 ** 31) | 0, rng = mulberry32(seed);
+  for (const o of OBJS) { dirtyUp(o, rng); Object.assign(o, { j: id, d: 0 }); o.redraw = true; }
+  host.sc = {}; host.scDirty = false;
+  for (const b of host.bots.values()) Object.assign(b, { surf: null, cell: -1, skip: new Set(), stand: null });
+  if (ATTRACT) attractPrefill();
+  for (const o of OBJS) writeObj(o);
+  return writeJob({ id, ph: "on", seed, at: Date.now(), t: 0, ends: 0, sc: {}, res: [] });
+}
+function scoreTable() {
+  const out = {}, all = crews();
+  for (const [id, n] of Object.entries(host.sc)) { const c = all.find((x) => x.id === id), was = (job()?.sc || {})[id]; out[id] = [n, c ? c.name : was ? was[1] : "Washer", c ? c.color : was ? was[2] : "#ccc"]; }
+  return out;
+}
+function endJob(d) {
+  const sc = scoreTable(), res = Object.entries(sc).filter(([id]) => !(ATTRACT && id === net.sessionId)).map(([id, s]) => [s[1], s[0], s[2], id]).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  return writeJob({ ...d, ph: "end", t: Date.now() - d.at, ends: Date.now() + CONFIG.resultsMs, sc, res });
+}
+/** Become host: take every object, the scores and the bots exactly as state has them; my own unsent washing goes in. */
+function adopt() {
+  host.was = true; host.last = null;
+  for (const o of OBJS) { o.raw = null; readObj(o); o.dirty = false; o.lastW = 0; }
+  const d = shared("job", null);
+  host.sc = {}; for (const [id, s] of Object.entries((d && d.sc) || {})) if (Array.isArray(s)) host.sc[id] = +s[0] || 0;
+  for (const o of OBJS) for (const [gi, ov] of o.ov) if (ov.mine) { if (ov.l < o.g[gi] && !o.d) { credit(net.sessionId, o.g[gi] - ov.l); o.g[gi] = ov.l; o.dirty = true; } o.ov.delete(gi); }
+  outbox.clear();
+  host.bots.clear();
+  for (const b of shared("bots", [])) if (b && typeof b.x === "number") host.bots.set(b.i, newBot(b.i, { name: b.n, color: b.c, x: b.x, z: b.z, h: b.h || 0 }));
+}
+/** A "wash" intent: someone's cleaned cells. Dirt only goes down, so the lower level wins. */
+function applyWash(from, m) {
+  const d = job();
+  if (!d || d.ph !== "on" || !m || m.j !== d.id || !Array.isArray(m.w)) return;
+  for (let k = 0; k + 2 < m.w.length && k < 600; k += 3) {
+    const o = OBJS[m.w[k]], gi = m.w[k + 1], l = m.w[k + 2];
+    if (!o || o.d || !Number.isInteger(gi) || gi < 0 || gi >= o.n || !Number.isInteger(l) || l < 0 || l > 3 || l >= o.g[gi]) continue;
+    credit(from, o.g[gi] - l); o.g[gi] = l; o.dirty = true; o.redraw = true;
+  }
+}
+/** Ding objects that are clean enough; end the job when all five are done. */
+function checkObjects(d, t) {
+  for (const o of OBJS) {
+    if (o.d) continue;
+    let clean = 0; for (let gi = 0; gi < o.n; gi++) if (!o.g[gi]) clean++;
+    if (clean / o.n >= CONFIG.doneAt) { o.g.fill(0); o.d = 1; o.dirty = true; o.redraw = true; o.ov.clear(); dingFx(o); }
+  }
+  if (OBJS.every((o) => o.d)) { for (const o of OBJS) if (o.dirty) writeObj(o); return endJob(d); } // the last grids land before the results
+  return d;
+}
+/** Write dirty objects: one field at a time, each at most ~4 times a second. */
+function publishObjs(now) {
+  if (now - host.lastObj < 80) return;
+  let best = null;
+  for (const o of OBJS) if (o.dirty && now - o.lastW > 250 && (!best || o.lastW < best.lastW)) best = o;
+  if (best) { host.lastObj = now; writeObj(best); }
+}
+function hostTick(dt, now) {
+  if (!host.was) adopt();
+  fitBots();
+  const t = Date.now();
+  let d = job();
+  if (!d) d = startJob(1);
+  if (d.ph === "end" && t >= d.ends) d = startJob(d.id + 1);
+  if (d.ph === "on" && now - host.checkAt > 250) { host.checkAt = now; d = checkObjects(d, t); }
+  for (const b of host.bots.values()) botTick(b, dt, d, "host", b.id, CONFIG.botPower);
+  publishObjs(now);
+  if (host.scDirty && d.ph === "on" && now - host.lastJob > 500) { host.lastJob = now; host.scDirty = false; d = writeJob({ ...d, sc: scoreTable() }); }
+  if (now - host.lastBots > 100) {
+    host.lastBots = now;
+    const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+    net.setShared("bots", JSON.stringify(botList().map((b) => ({ ...b, x: r2(b.x), z: r2(b.z), h: r2(b.h), v: r2(b.v), a: b.a ? [b.a[0], r3(b.a[1]), r3(b.a[2])] : 0, p: b.p ? b.p.map(r2) : 0 }))));
+  }
+}
+
+// ── BOTS (HOST) ─────────────────────────────────────────────────────────────────────
+// A bot washer picks a dirty surface nobody else is on, stands in front of it and sweeps it
+// row by row from the top (back and forth), switching to the jet for caked mud. It walks over
+// to wherever its next spot is, and gives up on a spot it can't get clean.
+function botList() {
+  if (hosting()) return [...host.bots.values()].map((b) => ({ i: b.id, n: b.name, c: b.color, x: b.x, z: b.z, h: b.h, v: b.v, s: b.s, nz: b.nz, a: b.s && b.aim ? [b.aim.s.id, b.aim.u, b.aim.v] : 0, p: b.s ? [b.ap.x, b.ap.y, b.ap.z] : 0 }));
+  return shared("bots", []).filter((b) => b && typeof b.x === "number");
+}
+const SPAWNS = [[-4, 6.5], [-1, 6.8], [2, 6.5], [5, 6.8], [-7, 6.6], [11, 6.4], [0, 1.5]];
+function newBot(id, from) {
+  const used = new Set(crews().map((c) => c.color)), names = new Set([...host.bots.values()].map((b) => b.name)), s = SPAWNS[(host.bots.size + 1) % SPAWNS.length];
+  return { id, name: BOT_NAMES.find((n) => !names.has(n)) || "Washer", color: COLORS.find((c) => !used.has(c)) || pick(COLORS), x: s[0], z: s[1], h: Math.PI, v: 0, s: 0, nz: 0,
+    surf: null, cell: -1, cellAt: 0, skip: new Set(), stand: null, aim: null, ap: new THREE.Vector3(), nzUntil: 0, wob: rnd(0, 6.28), stuckT: 0, nudge: null, restUntil: 0, ...from };
+}
+/** Bots fill the crew up to CONFIG.seats; one leaves when a person joins. A bot never wears a person's color. */
+function fitBots() {
+  const humans = livePlayers().filter((id) => !(ATTRACT && id === net.sessionId)).length, want = Math.max(0, CONFIG.seats - humans - (ATTRACT ? 1 : 0));
+  while (host.bots.size > want) host.bots.delete([...host.bots.keys()].pop());
+  while (host.bots.size < want) { const id = "b" + Math.random().toString(36).slice(2, 6); host.bots.set(id, newBot(id)); }
+  const people = new Set(crews().filter((c) => !c.bot).map((c) => c.color));
+  for (const b of host.bots.values()) if (people.has(b.color)) { const used = new Set(crews().map((c) => c.color)); b.color = COLORS.find((c) => !used.has(c)) || b.color; }
+}
+const dirtyCells = (s) => { let n = 0; for (let c = 0; c < s.n; c++) if (s.o.g[s.off + c]) n++; return n; };
+/** The best surface for a bot: on an object that's nearly done (finish it: ding!), dirty, close, few other washers on it. */
+function pickSurf(b, others) {
+  let best = null, bs = -Infinity;
+  const doneShare = new Map(OBJS.map((o) => { let n = 0; for (let gi = 0; gi < o.n; gi++) if (!o.g[gi]) n++; return [o, n / o.n]; }));
+  for (const s of SURFS) {
+    if (s.o.d) continue;
+    const left = dirtyCells(s); if (left < 4) continue;
+    surfPoint(s, 0.5, 0.5, V, V2);
+    const busy = others.filter((o) => o !== b && o.surf === s).length, near = others.filter((o) => o !== b && o.surf && o.surf.o === s.o).length;
+    const sc = Math.min(left, 300) + doneShare.get(s.o) * 500 - Math.hypot(V.x - b.x, V.z - b.z) * 18 - busy * 900 - near * 120 + (b.surf && b.surf.o === s.o ? 120 : 0) + rnd(0, 40);
+    if (sc > bs) { bs = sc; best = s; }
+  }
+  return best;
+}
+/** The next dirty cell, reading the surface like a page: rows from the top, back and forth. */
+function nextCell(b) {
+  const s = b.surf, g = s.o.g;
+  for (let k = 0; k < s.rows; k++) {
+    const row = s.rows - 1 - k, dir = k % 2 ? -1 : 1;
+    for (let j = 0; j < s.cols; j++) { const col = dir > 0 ? j : s.cols - 1 - j, c = row * s.cols + col; if (g[s.off + c] && !b.skip.has(c)) return c; }
+  }
+  return -1;
+}
+const PT = new THREE.Vector3(), NT = new THREE.Vector3();
+/** Where to stand to spray a spot: out in front of it (south of it, for tops), clear of things. */
+function standFor(P, N, range) {
+  let nx = N.x, nz = N.z, l = Math.hypot(nx, nz), dist = Math.min(2.1, range * 0.5);
+  if (l < 0.45) { nx = 0; nz = 1; l = 1; dist = 1.3; }
+  const st = { x: P.x + (nx / l) * dist, z: P.z + (nz / l) * dist };
+  collide(st, 0.4);
+  return { x: st.x, z: st.z, px: P.x, pz: P.z };
+}
+/** Walk toward (tx, tz); slower while spraying. */
+function walk(m, tx, tz, top, dt) {
+  const dx = tx - m.x, dz = tz - m.z, d = Math.hypot(dx, dz), want = d > 0.15 ? Math.min(top, d * 3) : 0;
+  m.v += clamp(want - m.v, -14 * dt, 10 * dt);
+  if (d > 0.01 && m.v > 0) { m.x += (dx / d) * m.v * dt; m.z += (dz / d) * m.v * dt; if (!m.s) m.h = wrap(m.h + clamp(wrap(Math.atan2(dx, dz) - m.h), -10 * dt, 10 * dt)); }
+  collide(m);
+}
+/** One step of a bot (or ?attract's autopilot, `mode` = how its spray lands). */
+function botTick(b, dt, d, mode, who, power) {
+  const t = performance.now();
+  b.s = 0;
+  if (!d || d.ph !== "on") { walk(b, b.x, b.z, 0, dt); return; }
+  if (t < b.restUntil) { walk(b, b.x, b.z, 0, dt); return; }
+  const others = [...host.bots.values(), me];
+  if (!b.surf || b.surf.o.d || t > (b.rethink || 0)) {
+    const was = b.surf; b.surf = pickSurf(b, others); b.rethink = t + rnd(7000, 11000);
+    if (b.surf !== was) { b.cell = -1; b.skip = new Set(); b.stand = null; if (was && Math.random() < 0.25) { b.restUntil = t + rnd(600, 1500); return; } }
+  }
+  if (!b.surf) { walk(b, b.x, b.z, 0, dt); return; }
+  const s = b.surf, o = s.o;
+  if (b.cell < 0 || !o.g[s.off + b.cell]) { b.cell = nextCell(b); b.cellAt = t; }
+  if (b.cell >= 0 && t - b.cellAt > CONFIG.botStuckMs) { b.skip.add(b.cell); b.cell = nextCell(b); b.cellAt = t; }
+  if (b.cell < 0) { b.surf = null; return; }
+  const u = ((b.cell % s.cols) + 0.5) / s.cols, v = (Math.floor(b.cell / s.cols) + 0.5) / s.rows;
+  surfPoint(s, u, v, PT, NT);
+  const lvl = o.g[s.off + b.cell];
+  if (lvl === 3) { b.nz = 1; b.nzUntil = t + 1600; } else if (t > b.nzUntil) b.nz = 0;
+  if (!b.stand || Math.hypot(b.stand.px - PT.x, b.stand.pz - PT.z) > 1.4) b.stand = standFor(PT, NT, NOZ[b.nz].range);
+  // walk to the stand spot (back off and try again when stuck)
+  if (b.nudge && t < b.nudge.until) walk(b, b.nudge.x, b.nudge.z, CONFIG.speed * CONFIG.botPace, dt);
+  else walk(b, b.stand.x, b.stand.z, CONFIG.speed * CONFIG.botPace * (Math.hypot(b.stand.x - b.x, b.stand.z - b.z) < 1.5 ? CONFIG.sprayWalk : 1), dt);
+  const far = Math.hypot(b.stand.x - b.x, b.stand.z - b.z);
+  b.stuckT = far > 0.6 && b.v < 0.4 ? b.stuckT + dt : 0;
+  if (b.stuckT > 1.4) { b.stuckT = 0; const a = rnd(0, 6.28); b.nudge = { until: t + 700, x: b.x + Math.sin(a) * 2, z: b.z + Math.cos(a) * 2 }; }
+  // aim: glide along the surface toward the spot (a little wobbly, like a person)
+  const wob = Math.sin(t / 420 + b.wob) * 0.05, au = u + wob / s.su, av = v + Math.cos(t / 530 + b.wob) * 0.04 / s.sv;
+  if (!b.aim || b.aim.s !== s) b.aim = { s, u: au, v: av, pu: au, pv: av };
+  else { const du = (au - b.aim.u) * s.su, dv = (av - b.aim.v) * s.sv, len = Math.hypot(du, dv), step = Math.min(len, 3.2 * dt); b.aim.pu = b.aim.u; b.aim.pv = b.aim.v; if (len > 1e-6) { b.aim.u += (du / len) * (step / s.su); b.aim.v += (dv / len) * (step / s.sv); } }
+  surfPoint(s, b.aim.u, b.aim.v, b.ap, NT);
+  const nzX = b.x + Math.sin(b.h) * 0.7, nzY = groundY(b.x, b.z) + 1.05, nzZ = b.z + Math.cos(b.h) * 0.7;
+  if (far < 1.6 && Math.hypot(b.ap.x - nzX, b.ap.y - nzY, b.ap.z - nzZ) <= NOZ[b.nz].range) {
+    b.s = 1; b.h = wrap(b.h + clamp(wrap(Math.atan2(b.ap.x - b.x, b.ap.z - b.z) - b.h), -9 * dt, 9 * dt));
+    sweep(s, { s, u: b.aim.pu, v: b.aim.pv }, b.aim.u, b.aim.v, b.nz, dt, mode, who, power);
+    splashFx(b.ap, s, b.aim.u, b.aim.v, b.nz, dt);
+  }
+}
+/** ?attract: the yard is already part washed (from the top down) and every washer is mid-job, so the preview shows dings soon. */
+function attractPrefill() {
+  const done = [0.35, 0.3, 0.3, 0.3, 0.4]; // fence, deck, car, gnome, playground
+  OBJS.forEach((o, i) => {
+    for (const s of o.surfs) {
+      const cut = Math.floor(s.rows * (1 - done[i] - rnd(-0.1, 0.1)));
+      for (let row = s.rows - 1; row >= Math.max(0, cut); row--) for (let col = 0; col < s.cols; col++) o.g[s.off + row * s.cols + col] = 0;
+    }
+  });
+  const crew = [...host.bots.values(), me], jobs = [car.surfs[0], car.surfs[3], gnome.surfs[0], car.surfs[1], gnome.surfs[3], gnome.surfs[1]]; // where the camera looks
+  crew.forEach((b, k) => {
+    b.surf = jobs[k % jobs.length]; b.rethink = performance.now() + rnd(7000, 11000);
+    b.cell = nextCell(b); if (b.cell < 0) return;
+    surfPoint(b.surf, ((b.cell % b.surf.cols) + 0.5) / b.surf.cols, (Math.floor(b.cell / b.surf.cols) + 0.5) / b.surf.rows, PT, NT);
+    b.stand = standFor(PT, NT, NOZ[0].range); b.x = b.stand.x; b.z = b.stand.z; b.h = Math.atan2(PT.x - b.x, PT.z - b.z);
+  });
+}
+
+// ── ME ──────────────────────────────────────────────────────────────────────────────
+const myName = (() => { try { return localStorage.getItem("mpa-name") || ""; } catch { return ""; } })() || pick(["Sparkly", "Squeaky", "Shiny", "Breezy", "Lucky", "Sunny"]) + " " + pick(["Washer", "Blaster", "Scrubber", "Sprayer"]);
+let myColor = COLORS[0];
+const me = { id: "", x: 0, z: 6.2, h: Math.PI, v: 0, y: 0, s: 0, nz: 0, aim: null, hit: null, jobId: 0, banked: 0, lastSend: 0, sent: "", lastWash: 0, lastResend: 0, cakedAt: 0, farAt: 0, sprayAt: 0,
+  surf: null, cell: -1, cellAt: 0, skip: new Set(), stand: null, ap: new THREE.Vector3(), nzUntil: 0, wob: 1.3, stuckT: 0, nudge: null, restUntil: 0 }; // surf…restUntil: ?attract's autopilot drives me like a bot
+/** A new yard (or I just arrived): forget my overrides and wear. */
+function newJobForMe(d) {
+  me.jobId = d.id; overFor = -1; outbox.clear();
+  for (const o of OBJS) { o.ov.clear(); o.redraw = true; }
+  for (const s of SURFS) s.wear.fill(0);
+  reskin(d.seed || 1);
+}
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+/** What's under a screen point, through the camera that drew the frame: { point, surf, u, v } or null. */
+function aimAt(sx, sy) {
+  ndc.set((sx / innerWidth) * 2 - 1, -(sy / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  const h = ray.intersectObjects(AIMABLE, false)[0];
+  if (!h) return null;
+  const s = h.object.userData.surf;
+  return { point: h.point.clone(), surf: s || null, u: s && h.uv ? h.uv.x : 0, v: s && h.uv ? h.uv.y : 0 };
+}
+const nozzleOf = (m, out) => out.set(m.x + Math.sin(m.h) * 0.7, groundY(m.x, m.z) + 1.05, m.z + Math.cos(m.h) * 0.7);
+function myTick(dt, now, d) {
+  if (!d) return;
+  if (d.id !== me.jobId) newJobForMe(d);
+  const on = d.ph === "on", mode = hosting() ? "host" : "mine";
+  if (ATTRACT) { botTick(me, dt, d, "host", net.sessionId, CONFIG.botPower); me.hit = me.s && me.surf ? { point: me.ap, surf: me.surf } : null; publish(now); return; }
+  const { ix, iz } = readInput(), spraying = on && sprayHeld();
+  // walk (camera-relative: up on screen is north)
+  const len = Math.hypot(ix, iz), top = CONFIG.speed * (spraying ? CONFIG.sprayWalk : 1);
+  const want = len > 0.05 ? top * Math.min(1, len) : 0;
+  me.v += clamp(want - me.v, -18 * dt, 14 * dt);
+  if (len > 0.05) { me.x += (ix / len) * me.v * dt; me.z += (iz / len) * me.v * dt; if (!spraying) me.h = wrap(me.h + clamp(wrap(Math.atan2(ix, iz) - me.h), -12 * dt, 12 * dt)); }
+  collide(me);
+  // aim and spray
+  me.s = 0; me.hit = null;
+  if (spraying) {
+    const p = sprayPoint(), hit = p && aimAt(p.x, p.y);
+    if (hit) {
+      me.h = wrap(me.h + clamp(wrap(Math.atan2(hit.point.x - me.x, hit.point.z - me.z) - me.h), -14 * dt, 14 * dt));
+      nozzleOf(me, V); const dist = V.distanceTo(hit.point);
+      me.s = 1; me.hit = hit; me.sprayAt = now;
+      if (hit.surf && dist <= NOZ[me.nz].range) {
+        const r = sweep(hit.surf, me.aim, hit.u, hit.v, me.nz, dt, mode, net.sessionId, 1);
+        if (r.caked > 2 && !r.removed) me.cakedAt = now;
+        if (r.cleaned && Math.random() < 0.3) glint(hit.point);
+        me.aim = { s: hit.surf, u: hit.u, v: hit.v };
+        splashFx(hit.point, hit.surf, hit.u, hit.v, me.nz, dt);
+      } else { me.aim = null; if (hit.surf) me.farAt = now; else splashFx(hit.point, null, 0, 0, me.nz, dt); }
+    } else me.aim = null;
+  } else me.aim = null;
+  sendWash(now);
+  publish(now);
+}
+/** Every 100ms: my washed cells to the host (a few hundred per message at most); every 2s, anything it still hasn't taken. */
+function sendWash(now) {
+  if (hosting()) { outbox.clear(); return; }
+  if (now - me.lastResend > CONFIG.resendMs) {
+    me.lastResend = now;
+    for (const o of OBJS) for (const [gi, ov] of o.ov) if (ov.mine && o.g[gi] > ov.l) outbox.set(o.i * 65536 + gi, [o.i, gi, ov.l]);
+  }
+  if (!outbox.size || now - me.lastWash < CONFIG.sendMs) return;
+  me.lastWash = now;
+  const w = [];
+  for (const [key, e] of outbox) { w.push(e[0], e[1], e[2]); outbox.delete(key); if (w.length >= 540) break; }
+  net.send("wash", { j: me.jobId, w });
+}
+function publish(now) {
+  if (now - me.lastSend < 80) return;
+  const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000, h = me.hit;
+  const k = JSON.stringify({ x: r2(me.x), z: r2(me.z), h: r2(me.h), v: r2(me.v), s: me.s, n: me.nz, a: h && h.surf && me.aim ? [h.surf.id, r3(me.aim.u), r3(me.aim.v)] : 0, p: h ? [r2(h.point.x), r2(h.point.y), r2(h.point.z)] : 0 });
+  if (k === me.sent && now - me.lastSend < 1000) return;
+  me.lastSend = now; me.sent = k; net.me.set("k", k);
+}
+function setNozzle(n) { me.nz = n; me.aim = null; sfx(n ? 900 : 600, 0.06, "square", 0.03); $("nozBtn").innerHTML = n ? "JET<small>tap: fan</small>" : "FAN<small>tap: jet</small>"; }
+
+// ── OTHERS ──────────────────────────────────────────────────────────────────────────
+const views = new Map(); // id -> { m (model), st (stream), x, z, h, aim (eased) }
+function viewOf(id, color, name) {
+  let v = views.get(id);
+  if (v && v.color !== color) { scene.remove(v.m.g); v = null; views.delete(id); }
+  if (!v) { v = { m: makeWasher(color, ATTRACT ? "" : name), st: makeStream(), color, x: 0, z: 0, h: 0, fresh: true, raw: "", at: 0, aim: null }; views.set(id, v); }
+  return v;
+}
+/** Ease another washer toward where it should be now: its last report plus how far it has walked since. */
+function place(v, k, dt) {
+  const raw = k.x + "," + k.z;
+  if (raw !== v.raw) { if (v.raw) { v.vx = (k.x - v.kx) / Math.max(0.05, (performance.now() - v.at) / 1000); v.vz = (k.z - v.kz) / Math.max(0.05, (performance.now() - v.at) / 1000); } v.raw = raw; v.kx = k.x; v.kz = k.z; v.at = performance.now(); }
+  const age = Math.min(0.2, (performance.now() - v.at) / 1000), px = k.x + clamp(v.vx || 0, -6, 6) * age, pz = k.z + clamp(v.vz || 0, -6, 6) * age;
+  if (v.fresh || Math.hypot(px - v.x, pz - v.z) > 6) { v.x = px; v.z = pz; v.h = k.h; v.fresh = false; }
+  const e = 1 - Math.pow(0.0005, dt);
+  v.x += (px - v.x) * e; v.z += (pz - v.z) * e; v.h += wrap(k.h - v.h) * e;
+}
+/** Draw every other washer and preview its spray on my screen (the host's grid confirms it a moment later). */
+function drawCrews(dt, now, d) {
+  const seen = new Set(), on = d && d.ph === "on", t = now / 1000;
+  for (const c of crews()) {
+    if (c.mine) continue;
+    seen.add(c.id);
+    const v = viewOf(c.id, c.color, c.name);
+    if (c.bot && hosting()) { const b = host.bots.get(c.id); if (!b) continue; v.x = b.x; v.z = b.z; v.h = b.h; poseWasher(v.m, b.x, b.z, b.h, b.v, b.s ? b.ap : null, b.nz, t); setStream(v.st, v.m, b.s ? b.ap : null, b.nz, t); continue; }
+    place(v, c, dt);
+    let target = c.s && c.p ? V2.set(c.p[0], c.p[1], c.p[2]) : null;
+    const s = c.s && c.a ? SURFS[c.a[0]] : null;
+    if (s) {
+      if (!v.aim || v.aim.s !== s) v.aim = { s, u: c.a[1], v: c.a[2] };
+      const prev = { s, u: v.aim.u, v: v.aim.v }, e = 1 - Math.pow(0.0008, dt);
+      v.aim.u += (c.a[1] - v.aim.u) * e; v.aim.v += (c.a[2] - v.aim.v) * e;
+      target = surfPoint(s, v.aim.u, v.aim.v, V2, NT);
+      if (on) { sweep(s, prev, v.aim.u, v.aim.v, c.nz, dt, "peek", c.id, c.bot ? CONFIG.botPower : 1); splashFx(target, s, v.aim.u, v.aim.v, c.nz, dt); }
+    } else v.aim = null;
+    poseWasher(v.m, v.x, v.z, v.h, c.v, target, c.nz, t); setStream(v.st, v.m, target, c.nz, t);
+  }
+  for (const [id, v] of views) if (!seen.has(id)) { scene.remove(v.m.g, v.st.jet, v.st.fan); views.delete(id); }
+  if (!myModel || myModel.color !== myColor) { if (myModel) scene.remove(myModel.g); myModel = makeWasher(myColor, ""); }
+  const tgt = me.s && me.hit ? limitRange(me.hit.point) : null;
+  poseWasher(myModel, me.x, me.z, me.h, me.v, tgt, me.nz, t); setStream(myStream, myModel, tgt, me.nz, t);
+}
+/** My spray stops at the nozzle's reach: past it the water falls short. */
+function limitRange(p) { nozzleOf(me, V); const d = V.distanceTo(p), r = NOZ[me.nz].range; return d <= r ? p : V.lerp(p, r / d).clone().setY(Math.max(0.05, V.y - 0.6)); }
+/** Two people joined at once in one color (or a bot has mine): the one with the higher sessionId picks a free one. */
+function fixColor() {
+  const others = Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId), bots = botList();
+  if (!others.some(([id, p]) => p.c === myColor && id < net.sessionId) && !bots.some((b) => b.c === myColor)) return;
+  const taken = new Set([...others.map(([, p]) => p.c), ...bots.map((b) => b.c)]);
+  myColor = COLORS.find((c) => !taken.has(c)) || myColor; net.me.set("c", myColor);
+}
+
+// ── EFFECTS ─────────────────────────────────────────────────────────────────────────
+const skin = mat("#f2c9a0"), boots = mat("#2b3a55"), grey = mat("#8a9099", { roughness: 0.4, metalness: 0.5 }), tankMat = mat("#ffc533", { roughness: 0.5 });
+const tagTex = (name) => canvasTex(256, 64, (c) => { c.font = "bold 34px system-ui, sans-serif"; c.textAlign = "center"; c.lineWidth = 6; c.strokeStyle = "#000a"; c.strokeText(name, 128, 44); c.fillStyle = "#fff"; c.fillText(name, 128, 44); });
+/** A washer in overalls with a tank on its back and a wand in its hands. */
+function makeWasher(color, name) {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const suit = mat(color, { roughness: 0.7 });
+  const legs = [1, -1].map((s) => add(new THREE.BoxGeometry(0.16, 0.5, 0.18).translate(0, -0.25, 0), boots, s * 0.11, 0.5, 0, true, body));
+  add(new THREE.BoxGeometry(0.46, 0.52, 0.3), suit, 0, 0.76, 0, true, body);
+  add(new THREE.SphereGeometry(0.17, 14, 10), skin, 0, 1.18, 0, true, body);
+  add(new THREE.SphereGeometry(0.18, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), suit, 0, 1.22, 0, false, body);
+  add(new THREE.BoxGeometry(0.3, 0.04, 0.2), suit, 0, 1.23, 0.15, false, body);
+  add(new THREE.BoxGeometry(0.3, 0.07, 0.06), mat("#1c2b3a", { roughness: 0.2 }), 0, 1.2, 0.15, false, body);
+  add(new THREE.CylinderGeometry(0.13, 0.13, 0.42, 12), tankMat, 0, 0.82, -0.24, true, body);
+  const wand = new THREE.Group(); wand.position.set(0.12, 0.95, 0.12); body.add(wand);
+  add(new THREE.BoxGeometry(0.05, 0.05, 0.62).translate(0, 0, 0.31), grey, 0, 0, 0, true, wand);
+  add(new THREE.BoxGeometry(0.1, 0.16, 0.1), mat("#30343c"), 0, -0.06, 0.08, false, wand);
+  const tip = add(new THREE.CylinderGeometry(0.035, 0.05, 0.1, 8).rotateX(Math.PI / 2), mat("#ffd23f"), 0, 0, 0.64, false, wand);
+  for (const s of [1, -1]) add(new THREE.BoxGeometry(0.09, 0.09, 0.32), suit, s * 0.2, 0.86, 0.12, false, body).rotation.x = -0.4;
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#000", transparent: true, opacity: 0.2, depthWrite: false })); shadow.position.y = 0.03; g.add(shadow);
+  if (name) { const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex(name), depthTest: false })); tag.scale.set(3.2, 0.8, 1); tag.position.y = 2.0; g.add(tag); }
+  scene.add(g);
+  return { g, body, legs, wand, tip, color, walk: 0 };
+}
+function poseWasher(m, x, z, h, v, target, nz, t) {
+  const y = groundY(x, z);
+  m.g.position.set(x, m.g.position.y + (y - m.g.position.y) * 0.3, z); m.g.rotation.y = h;
+  m.walk += v * 0.05;
+  m.legs.forEach((l, k) => { l.rotation.x = v > 0.3 ? Math.sin(m.walk * 5 + k * Math.PI) * 0.5 : 0; });
+  m.body.position.y = v > 0.3 ? Math.abs(Math.sin(m.walk * 5)) * 0.04 : 0;
+  m.wand.rotation.x = target ? clamp(-Math.atan2(target.y - (y + 0.95), Math.max(0.3, Math.hypot(target.x - x, target.z - z))), -1.1, 1.1) : 0.5;
+  m.wand.position.z = target ? 0.12 + Math.sin(t * 50) * 0.008 : 0.12;
+  m.tip.scale.set(nz ? 0.7 : 1.4, nz ? 0.7 : 1.4, 1);
+}
+// Water: a thin bright jet or a see-through fan, from the wand's tip to where it lands.
+const waterMat = new THREE.MeshBasicMaterial({ color: "#dff6ff", transparent: true, opacity: 0.6, depthWrite: false });
+const fanMat = new THREE.MeshBasicMaterial({ color: "#c8eeff", transparent: true, opacity: 0.26, depthWrite: false, side: THREE.DoubleSide });
+const JET_GEO = new THREE.CylinderGeometry(0.03, 0.05, 1, 6, 1, true).translate(0, 0.5, 0), FAN_GEO = new THREE.ConeGeometry(1, 1, 18, 1, true).rotateX(Math.PI).translate(0, 0.5, 0);
+function makeStream() { const jet = new THREE.Mesh(JET_GEO, waterMat), fan = new THREE.Mesh(FAN_GEO, fanMat); jet.visible = fan.visible = false; scene.add(jet, fan); return { jet, fan }; }
+const myStream = makeStream(), TIP = new THREE.Vector3(), DIR = new THREE.Vector3();
+function setStream(st, m, target, nz, t) {
+  st.jet.visible = st.fan.visible = false;
+  if (!target) return;
+  m.tip.getWorldPosition(TIP); DIR.subVectors(target, TIP); const len = DIR.length(); if (len < 0.05) return;
+  DIR.divideScalar(len);
+  const s = nz ? st.jet : st.fan, w = 1 + Math.sin(t * 40) * 0.08;
+  s.visible = true; s.position.copy(TIP); s.quaternion.setFromUnitVectors(UP, DIR);
+  if (nz) s.scale.set(w, len, w); else s.scale.set(NOZ[0].r * w, len, NOZ[0].r * 0.35 * w);
+}
+// Particles: splashes, muddy spray, glints, sparkles. One instanced mesh of little blobs.
+const PMAX = 1400, parts = [];
+const partMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.05, 0), new THREE.MeshBasicMaterial({ color: "#ffffff" }), PMAX);
+partMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(PMAX * 3), 3); partMesh.frustumCulled = false; partMesh.count = 0; scene.add(partMesh);
+const colorCache = new Map(), col = (hex) => { if (!colorCache.has(hex)) colorCache.set(hex, new THREE.Color(hex)); return colorCache.get(hex); };
+function spark(x, y, z, vx, vy, vz, color, life, grav = 9, size = 1) { if (parts.length < PMAX) parts.push({ x, y, z, vx, vy, vz, c: col(color), life, max: life, grav, size }); }
+const camLook = new THREE.Vector3();
+/** Water bouncing off where a spray lands: muddy while there's dirt, clear when it's clean. */
+function splashFx(p, s, u, v, nz, dt) {
+  if (Math.hypot(p.x - camLook.x, p.z - camLook.z) > 30 || Math.random() > dt * 60) return;
+  const l = s ? levelAt(s, u, v) : 0, c = l === 3 ? ["#4a3220", "#5a3d26"] : l ? [s.o.grime.col, "#a89a7a", "#d8f3ff"] : ["#e8f8ff", "#bfe8ff", "#ffffff"];
+  for (let k = 0; k < (nz ? 3 : 4); k++) spark(p.x + rnd(-0.1, 0.1), p.y + rnd(-0.05, 0.1), p.z + rnd(-0.1, 0.1), rnd(-2, 2), rnd(1, 3.5), rnd(-1, 2.5), pick(c), rnd(0.3, 0.6), 9, l ? 1.1 : 0.8);
+}
+function glint(p) { spark(p.x, p.y + 0.05, p.z, 0, 0.6, 0, "#ffffff", 0.45, 0, 2.2); }
+const pops = [];
+function popText(text, x, y, z, color = "#fff4a8", scale = 1) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(320, 96, (c) => { c.font = "900 60px system-ui, sans-serif"; c.textAlign = "center"; c.lineWidth = 10; c.strokeStyle = "#0d3047"; c.strokeText(text, 160, 68); c.fillStyle = color; c.fillText(text, 160, 68); }), depthTest: false, transparent: true }));
+  s.scale.set(5 * scale, 1.5 * scale, 1); s.position.set(x, y, z); s.renderOrder = 6; scene.add(s); pops.push({ s, life: 2 });
+}
+let dings = 0; // dings this screen has shown (read by the ?test hook)
+/** An object hit 100%: sparkles, a chime, it shines for a moment. */
+function dingFx(o) {
+  dings++; o.flash = 1;
+  const [x, y, z] = o.label;
+  for (let k = 0; k < 80; k++) spark(x + rnd(-1, 1), y - 0.8, z + rnd(-0.6, 0.6), rnd(-4, 4), rnd(3, 8), rnd(-3, 3), pick(["#fff4a8", "#ffffff", "#9ff0ff", "#ffd23f", "#b6ff9e"]), rnd(0.9, 1.6), 7, 1.6);
+  popText(`${o.name} 100%!`, x, y + 0.4, z, "#b6ff9e", 0.95);
+  if (!ATTRACT) { toast(`${o.name}: sparkling!`, OBJS.every((q) => q.d) ? "The whole yard is clean!" : `${OBJS.filter((q) => !q.d).length} to go`); sfxDing(); }
+}
+function effectsTick(dt) {
+  let i = 0;
+  for (let n = parts.length - 1; n >= 0; n--) {
+    const p = parts[n]; p.life -= dt; if (p.life <= 0) { parts.splice(n, 1); continue; }
+    p.vy -= p.grav * dt; p.x += p.vx * dt; p.y = Math.max(0.03, p.y + p.vy * dt); p.z += p.vz * dt;
+    partMesh.setMatrixAt(i, M4.compose(V.set(p.x, p.y, p.z), Q.identity(), SC.setScalar(p.size * Math.min(1, (p.life / p.max) * 2.5)))); partMesh.setColorAt(i++, p.c);
+  }
+  partMesh.count = i; partMesh.instanceMatrix.needsUpdate = true; if (i) partMesh.instanceColor.needsUpdate = true;
+  for (let n = pops.length - 1; n >= 0; n--) { const p = pops[n]; p.life -= dt; p.s.position.y += dt * 1.2; p.s.material.opacity = Math.min(1, p.life * 1.4); if (p.life <= 0) { scene.remove(p.s); p.s.material.map.dispose(); pops.splice(n, 1); } }
+  for (const o of OBJS) if (o.flash > 0) { o.flash = Math.max(0, o.flash - dt * 0.9); for (const m of o.mats) m.emissive.setRGB(o.flash * 0.6, o.flash * 0.6, o.flash * 0.5); }
+}
+// A meter floating over each object: its name and how clean it is.
+for (const o of OBJS) {
+  o.signC = document.createElement("canvas"); o.signC.width = 256; o.signC.height = 72;
+  o.signT = new THREE.CanvasTexture(o.signC); o.signT.colorSpace = THREE.SRGBColorSpace;
+  o.sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: o.signT, depthTest: false, transparent: true }));
+  o.sign.scale.set(2.6, 0.73, 1); o.sign.position.set(...o.label); o.sign.renderOrder = 5; scene.add(o.sign); o.signKey = "";
+}
+function updateSign(o) {
+  const p = pct(o), key = o.d ? "done" : String(p);
+  if (key === o.signKey) return;
+  o.signKey = key;
+  const c = o.signC.getContext("2d"), W = 256, H = 72;
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = o.d ? "#2e9e54" : "#ffffffee"; c.beginPath(); c.roundRect(4, 4, W - 8, H - 8, 16); c.fill();
+  c.textBaseline = "middle"; c.font = "800 22px system-ui, sans-serif"; c.fillStyle = o.d ? "#fff" : "#16405a"; c.textAlign = "left"; c.fillText(o.name, 18, 26);
+  c.textAlign = "right"; c.font = "900 24px system-ui, sans-serif"; c.fillText(o.d ? "✓ 100%" : `${p}%`, W - 18, 26);
+  c.fillStyle = o.d ? "#ffffff55" : "#16405a22"; c.beginPath(); c.roundRect(18, 46, W - 36, 12, 6); c.fill();
+  c.fillStyle = o.d ? "#ffffff" : "#38b6e8"; c.beginPath(); c.roundRect(18, 46, Math.max(12, (W - 36) * p / 100), 12, 6); c.fill();
+  o.signT.needsUpdate = true;
+}
+
+// ── HUD & RESULTS ───────────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const mmss = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const starsFor = (ms) => (ms <= CONFIG.stars[0] ? 3 : ms <= CONFIG.stars[1] ? 2 : 1);
+let overFor = -1, startedAt = 0, myModel = null, board = null, objsHtml = "";
+function toast(big, small = "") { if (ATTRACT) return; const t = $("toast"); t.innerHTML = `${esc(big)}${small ? `<small>${esc(small)}</small>` : ""}`; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 2000); }
+function hud(d, now) {
+  if (ATTRACT) return;
+  const n = livePlayers().length, t = Date.now();
+  $("net").textContent = reconnecting ? "Reconnecting…" : net.offline ? "Offline: playing with bots" : `Online · ${n} player${n === 1 ? "" : "s"}${isHost() ? " · you run the yard" : ""}`;
+  if (!d) return;
+  const el = d.ph === "on" ? t - d.at : d.t, st = starsFor(el);
+  $("clock").textContent = `Yard ${d.id} · ${mmss(el)} · ${"★".repeat(st)}${"☆".repeat(3 - st)}`;
+  const mine = hosting() ? host.sc[net.sessionId] || 0 : ((d.sc || {})[net.sessionId] || [0])[0];
+  $("grime").innerHTML = `${mine}<small>grime blasted</small>`;
+  $("noz").innerHTML = me.nz ? "<b>JET</b> · cuts caked mud" : "<b>FAN</b> · wide and gentle";
+  const html = OBJS.map((o) => `<div class="${o.d ? "done" : ""}"><span>${o.name}</span><b><i style="width:${pct(o)}%"></i></b><em>${o.d ? "✓" : pct(o) + "%"}</em></div>`).join("");
+  if (html !== objsHtml) { objsHtml = html; $("objs").innerHTML = html; }
+  $("status").innerHTML = d.ph !== "on" ? "" : now - me.cakedAt < 900 && !me.nz ? `<span class="warn">Caked mud!</span><small>The fan can't shift it: switch to the JET (${touchUI ? "the button" : "Q or right-click"})</small>` : now - me.farAt < 600 ? `<span class="warn">Too far</span><small>Step closer (the ${me.nz ? "jet" : "fan"} reaches ${NOZ[me.nz].range} m)</small>` : "";
+  if (!startedAt) startedAt = now;
+  $("hint").style.opacity = now - startedAt < 16000 ? 1 : 0;
+  $("hint").innerHTML = `<span>${touchUI ? "Left thumb walks · touch the dirt to blast it · tap FAN/JET to switch" : "WASD walks · hold the mouse on dirt to blast it · Q switches FAN / JET"}</span>`;
+  $("over").hidden = d.ph !== "end" || overFor === d.id;
+  if (d.ph === "end") {
+    if (me.banked !== d.id) bankJob(d);
+    const res = d.res.find((x) => x[3] === net.sessionId) || [myName, 0, myColor, net.sessionId], s = starsFor(d.t);
+    $("overTitle").textContent = `Yard ${d.id} is sparkling!`;
+    $("overStars").textContent = "★".repeat(s) + "☆".repeat(3 - s);
+    $("overSub").textContent = `Team time ${mmss(d.t)} · you blasted ${res[1]} grime`;
+    $("results").innerHTML = d.res.map((x) => `<li class="${x[3] === net.sessionId ? "me" : ""}"><i style="background:${esc(x[2])}"></i>${esc(x[3] === net.sessionId ? "You" : x[0])}<span>${x[1]}</span></li>`).join("");
+    $("overNext").textContent = `Next yard in ${Math.max(0, Math.ceil((d.ends - t) / 1000))}s`;
+  }
+}
+/** The job is over: my grime goes on the leaderboard. */
+function bankJob(d) {
+  me.banked = d.id;
+  const res = d.res.find((x) => x[3] === net.sessionId), n = res ? Math.max(0, res[1]) : 0, list = $("board");
+  if (!board) { list.innerHTML = "<li>Leaderboards need a connection.</li>"; return; }
+  list.innerHTML = "<li>Loading…</li>";
+  (n > 0 ? board.submit(n).catch(() => null) : Promise.resolve()).then(() => board.top(10)).then(({ entries }) => {
+    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score}</span></li>`).join("") : "<li>No yards yet. Set the first!</li>";
+  }).catch(() => { list.innerHTML = "<li>Couldn't load the leaderboard.</li>"; });
+}
+$("again").onclick = () => { overFor = job()?.id ?? -1; };
+// Sound: the washer's hiss while I spray, and the ding. Started by the first key or tap.
+let audio = null, hiss = null;
+function wakeAudio() {
+  if (ATTRACT) return;
+  if (!audio) { try { audio = new AudioContext(); } catch { return; } }
+  if (audio.state === "suspended") audio.resume();
+  if (!hiss) {
+    const buf = audio.createBuffer(1, audio.sampleRate, audio.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = audio.createBufferSource(), f = audio.createBiquadFilter(), g = audio.createGain();
+    src.buffer = buf; src.loop = true; f.type = "bandpass"; f.Q.value = 0.8; g.gain.value = 0;
+    src.connect(f).connect(g).connect(audio.destination); src.start(); hiss = { f, g };
+  }
+}
+function hissTick() { if (!hiss) return; const t = audio.currentTime; hiss.g.gain.setTargetAtTime(me.s ? 0.07 : 0, t, 0.04); hiss.f.frequency.setTargetAtTime(me.nz ? 3200 : 1700, t, 0.05); }
+function sfx(freq, dur, type = "square", vol = 0.04, slideTo = 0) {
+  if (!audio || ATTRACT) return;
+  try {
+    const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
+    o.type = type; o.frequency.setValueAtTime(freq, t); if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(audio.destination); o.start(t); o.stop(t + dur);
+  } catch {}
+}
+function sfxDing() { [1568, 2093, 2637].forEach((f, k) => setTimeout(() => { sfx(f, 0.9, "sine", 0.07); sfx(f * 2.01, 0.5, "sine", 0.02); }, k * 90)); }
+
+// ── INPUT ───────────────────────────────────────────────────────────────────────────
+// Walking is screen-relative (up = toward the fence). Spraying aims at whatever is under the
+// mouse or the spraying finger, through the camera.
+const touchUI = matchMedia("(pointer: coarse)").matches && !ATTRACT;
+const keys = { left: false, right: false, up: false, down: false };
+const KEYS = { ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right", ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down" };
+const mouse = { down: false, x: 0, y: 0 }, stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 }, finger = { id: null, x: 0, y: 0 };
+function readInput() {
+  let ix = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), iz = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+  if (stick.id !== null) { const dx = stick.x - stick.ox, dy = stick.y - stick.oy, len = Math.hypot(dx, dy); if (len > 8) { ix = dx / Math.max(len, 50); iz = dy / Math.max(len, 50); } }
+  return { ix, iz };
+}
+const sprayHeld = () => mouse.down || finger.id !== null;
+const sprayPoint = () => (finger.id !== null ? finger : mouse.down ? mouse : null);
+addEventListener("keydown", (e) => {
+  wakeAudio(); const k = KEYS[e.key];
+  if (k) { e.preventDefault(); keys[k] = true; }
+  else if ((e.key === "q" || e.key === "Q" || e.key === " ") && !e.repeat) { e.preventDefault(); setNozzle(me.nz ? 0 : 1); }
+  else if (e.key === "1") setNozzle(0); else if (e.key === "2") setNozzle(1);
+});
+addEventListener("keyup", (e) => { const k = KEYS[e.key]; if (k) keys[k] = false; });
+addEventListener("blur", () => { for (const k in keys) keys[k] = false; mouse.down = false; stick.id = finger.id = null; $("stick").hidden = true; });
+const cvs = renderer.domElement;
+cvs.addEventListener("contextmenu", (e) => e.preventDefault());
+cvs.addEventListener("pointerdown", (e) => {
+  e.preventDefault(); wakeAudio();
+  if (e.pointerType === "mouse") { if (e.button === 2) { setNozzle(me.nz ? 0 : 1); return; } mouse.down = true; mouse.x = e.clientX; mouse.y = e.clientY; return; }
+  try { cvs.setPointerCapture(e.pointerId); } catch {}
+  if (stick.id === null && e.clientX < innerWidth * 0.45 && e.clientY > innerHeight * 0.5) { // bottom-left: the walking stick
+    Object.assign(stick, { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY });
+    const s = $("stick"); s.hidden = false; s.style.left = e.clientX + "px"; s.style.top = e.clientY + "px"; s.firstChild.style.transform = "";
+  } else if (finger.id === null) Object.assign(finger, { id: e.pointerId, x: e.clientX, y: e.clientY }); // anywhere else: spray there
+});
+cvs.addEventListener("pointermove", (e) => {
+  if (e.pointerType === "mouse") { mouse.x = e.clientX; mouse.y = e.clientY; return; }
+  if (e.pointerId === finger.id) { finger.x = e.clientX; finger.y = e.clientY; return; }
+  if (e.pointerId !== stick.id) return;
+  stick.x = e.clientX; stick.y = e.clientY;
+  const dx = stick.x - stick.ox, dy = stick.y - stick.oy, len = Math.hypot(dx, dy), k = len > 40 ? 40 / len : 1;
+  $("stick").firstChild.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+});
+for (const ev of ["pointerup", "pointercancel"]) addEventListener(ev, (e) => { if (e.pointerType === "mouse") mouse.down = false; if (e.pointerId === stick.id) { stick.id = null; $("stick").hidden = true; } if (e.pointerId === finger.id) finger.id = null; });
+$("nozBtn").hidden = !touchUI;
+document.body.classList.toggle("touch", touchUI);
+$("nozBtn").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); wakeAudio(); setNozzle(me.nz ? 0 : 1); });
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+// ── MAIN LOOP ───────────────────────────────────────────────────────────────────────
+let last = performance.now(), lastHb = 0, lastHud = 0, lastPrune = 0, camReady = false;
+const camPos = new THREE.Vector3(), look = new THREE.Vector3();
+/** Forget everything only a host keeps; the next read takes the objects from state. */
+function dropHost() { host.was = false; host.last = null; for (const o of OBJS) o.raw = null; }
+function frame(now) {
+  requestAnimationFrame(frame);
+  const t0 = performance.now(); // not `now`: the first frame after a freeze can be stamped from before it ended
+  if (frameAt && t0 - frameAt > 1000) { wokeAt = t0; dropHost(); } // woke from a stall: another player ran the yard meanwhile, so adopt state again (see isHost)
+  frameAt = t0;
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
+  if (now - lastHb > 1000) { lastHb = now; net.me.set("hb", Date.now()); fixColor(); }
+  if (isHost()) hostTick(dt, now); else if (host.was) dropHost();
+  if (!hosting()) for (const o of OBJS) readObj(o);
+  const d = job();
+  myTick(dt, now, d);
+  drawCrews(dt, now, d);
+  if (now - lastPrune > 150) { lastPrune = now; pruneOverrides(now); }
+  for (const o of OBJS) { if (o.redraw) refreshObj(o); updateSign(o); }
+  for (const s of SURFS) if (s.texDirty) { s.texDirty = false; s.maskA.needsUpdate = s.maskB.needsUpdate = true; }
+  effectsTick(dt);
+  hissTick();
+  // the camera: high and behind my washer (farther back on a tall phone screen); ?attract drifts over the whole yard
+  const k = Math.max(1, 0.9 / camera.aspect) ** 0.95;
+  if (ATTRACT) { const x = 1.6 + Math.sin(now / 4000) * 0.5; camPos.set(x, 10.5, 14); look.set(x, 0.6, 1.2); }
+  else { camPos.set(me.x, 10.5 * k, me.z + 9 * k); look.set(me.x, 0.6, me.z - 2.2); }
+  if (!camReady) { camera.position.copy(camPos); camLook.copy(look); camReady = true; }
+  camera.position.lerp(camPos, 1 - Math.pow(0.02, dt)); camLook.lerp(look, 1 - Math.pow(0.02, dt));
+  camera.lookAt(camLook);
+  renderer.render(scene, camera);
+  if (now - lastHud > 100) { lastHud = now; hud(d, now); }
+}
+
+(async function start() {
+  document.body.classList.toggle("attract", ATTRACT);
+  if (ATTRACT) $("net").textContent = "";
+  reskin(1);
+  net = await connect();
+  net.onState((st) => { S = st; });
+  net.on("wash", (m, from) => { if (hosting()) applyWash(from, m); });
+  net.onDisconnect(() => { reconnecting = true; $("net").textContent = "Reconnecting…"; });
+  net.onReconnect(() => { reconnecting = false; });
+  net.onLive((live) => { $("event").textContent = ((live && live.active) || []).map((e) => e.title).join(" · "); });
+  if (!net.offline && typeof MP !== "undefined") board = MP.auth({ key: MP_CONNECT.key, apiUrl: MP_CONNECT.apiUrl }).leaderboard(CONFIG.board);
+  const taken = new Set([...Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId).map(([, p]) => p.c), ...shared("bots", []).map((b) => b && b.c)]);
+  myColor = COLORS.find((c) => !taken.has(c)) || pick(COLORS);
+  me.id = net.sessionId;
+  me.x = rnd(-3, 3);
+  net.me.set({ n: myName, c: myColor, hb: Date.now() });
+  if (TEST) window.__test = { me, keys, mouse, S: () => S, job, OBJS, SURFS, isHost, botList, crews, host, views, camera, aimAt, pct, dings: () => dings, setNozzle };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
