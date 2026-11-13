@@ -42,7 +42,7 @@
   .card h3 { margin: 14px 0 4px; font-size: 12px; color: #9ff0ff; text-align: left; text-transform: uppercase; letter-spacing: .06em; }
   .card p { margin: 4px 0 0; font-size: 14px; opacity: .9; }
   .card ol { margin: 0; padding-left: 24px; text-align: left; font-size: 14px; }
-  .card li { margin: 2px 0; } .card li span { float: right; font-variant-numeric: tabular-nums; }
+  .card li { margin: 2px 0; } .card li.msg { list-style: none; margin-left: -24px; opacity: .8; } .card li span { float: right; font-variant-numeric: tabular-nums; }
   .card li.me { color: #9ff0ff; font-weight: 800; } .card li i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
   button.go { width: 100%; min-height: 48px; margin-top: 14px; border: 0; border-radius: 14px; background: #ffd23f; color: #3a2a00; font: 900 17px system-ui, sans-serif; cursor: pointer; }
   .touch #hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 124px); }
@@ -66,7 +66,7 @@
 <div id="over" hidden><div class="card">
   <h2 id="overTitle">Sparkling!</h2><div class="stars" id="overStars"></div><p id="overSub"></p>
   <h3>The crew</h3><ol id="results"></ol>
-  <h3>Most grime blasted in one yard</h3><ol id="board"><li>Loading…</li></ol>
+  <h3>Most grime blasted in one yard</h3><ol id="board"><li class="msg">Loading…</li></ol>
   <button class="go" id="again">Play again</button><p id="overNext"></p>
 </div></div>
 <script type="module">
@@ -82,7 +82,7 @@
  *   DIRT .......... dirt levels per cell, packing, reading/writing the shared fields, my overrides
  *   WASHING ....... spraying a dab (the same for me, bots and everyone's preview)
  *   JOB (HOST) .... a yard job: dirty it up, take wash intents, ding finished objects, results
- *   BOTS (HOST) ... bot washers: pick a surface, stand in front of it, sweep it row by row
+ *   BOTS (HOST) ... bot washers: pick a surface, walk round what is in the way, sweep it row by row
  *   ME ............ walking, aiming through the camera, spraying, sending my cleaning
  *   OTHERS ........ other washers eased between snapshots, their spray drawn and previewed
  *   EFFECTS ....... water streams, splashes, glints, the 100% ding, pop-up text
@@ -371,7 +371,7 @@ function surfPoint(s, u, v, outP, outN) {
   return outP;
 }
 // 1. THE FENCE: four panels of boards along the back. Under the moss there's a painted mural (it changes each yard).
-const fence = newObj("Fence", [0, 2.7, -8.4], "moss", 1.2);
+const fence = newObj("Fence", [-6, 2.7, -8.4], "moss", 1.2);
 const fenceCv = document.createElement("canvas"); fenceCv.width = 2048; fenceCv.height = 128;
 const fenceTex = new THREE.CanvasTexture(fenceCv); fenceTex.colorSpace = THREE.SRGBColorSpace; fenceTex.anisotropy = 4;
 const fenceMaps = [];
@@ -696,7 +696,7 @@ function pickSurf(b, others) {
   const doneShare = new Map(OBJS.map((o) => { let n = 0; for (let gi = 0; gi < o.n; gi++) if (!o.g[gi]) n++; return [o, n / o.n]; }));
   for (const s of SURFS) {
     if (s.o.d) continue;
-    const left = dirtyCells(s); if (left < 4) continue;
+    const left = dirtyCells(s); if (!left) continue; // even a few last specks: the object can't ding until they're gone
     surfPoint(s, 0.5, 0.5, V, V2);
     const busy = others.filter((o) => o !== b && o.surf === s).length, near = others.filter((o) => o !== b && o.surf && o.surf.o === s.o).length;
     const sc = Math.min(left, 300) + doneShare.get(s.o) * 500 - Math.hypot(V.x - b.x, V.z - b.z) * 18 - busy * 900 - near * 120 + (b.surf && b.surf.o === s.o ? 120 : 0) + rnd(0, 40);
@@ -704,14 +704,23 @@ function pickSurf(b, others) {
   }
   return best;
 }
-/** The next dirty cell, reading the surface like a page: rows from the top, back and forth. */
+/** The next dirty cell, reading the surface like a page: rows from the top, back and forth.
+ *  Cells right next to where another washer on this surface is working are left to it (unless they're all that's left). */
 function nextCell(b) {
-  const s = b.surf, g = s.o.g;
+  const s = b.surf, g = s.o.g, near = [];
+  for (const o of [...host.bots.values(), me]) if (o !== b && o.surf === s && o.cell >= 0) near.push([o.cell % s.cols, Math.floor(o.cell / s.cols)]);
+  const gap = Math.max(2, Math.round(0.9 / s.cw)), gapR = Math.max(2, Math.round(0.9 / s.ch));
+  let spare = -1;
   for (let k = 0; k < s.rows; k++) {
     const row = s.rows - 1 - k, dir = k % 2 ? -1 : 1;
-    for (let j = 0; j < s.cols; j++) { const col = dir > 0 ? j : s.cols - 1 - j, c = row * s.cols + col; if (g[s.off + c] && !b.skip.has(c)) return c; }
+    for (let j = 0; j < s.cols; j++) {
+      const col = dir > 0 ? j : s.cols - 1 - j, c = row * s.cols + col;
+      if (!g[s.off + c] || b.skip.has(c)) continue;
+      if (!near.some(([nc, nr]) => Math.abs(nc - col) <= gap && Math.abs(nr - row) <= gapR)) return c;
+      if (spare < 0) spare = c;
+    }
   }
-  return -1;
+  return spare;
 }
 const PT = new THREE.Vector3(), NT = new THREE.Vector3();
 /** Where to stand to spray a spot: out in front of it (south of it, for tops), clear of things. */
@@ -722,9 +731,37 @@ function standFor(P, N, range) {
   collide(st, 0.4);
   return { x: st.x, z: st.z, px: P.x, pz: P.z };
 }
-/** Walk toward (tx, tz); slower while spraying. */
+/** Does the line from (ax, az) to (bx, bz) pass through solid `s` (grown by `g`)? Round solids count as their square. */
+function crosses(s, ax, az, bx, bz, g) {
+  const x0 = (s.r !== undefined ? s.x - s.r : s.x0) - g, x1 = (s.r !== undefined ? s.x + s.r : s.x1) + g, z0 = (s.r !== undefined ? s.z - s.r : s.z0) - g, z1 = (s.r !== undefined ? s.z + s.r : s.z1) + g;
+  let t0 = 0, t1 = 1;
+  for (const [p, d, lo, hi] of [[ax, bx - ax, x0, x1], [az, bz - az, z0, z1]]) {
+    if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) return false; continue; }
+    let a = (lo - p) / d, b = (hi - p) / d; if (a > b) [a, b] = [b, a];
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) return false;
+  }
+  return true;
+}
+/** Where to head for (tx, tz): straight there, or round the corner of whatever is in the way (the car, the playhouse…). */
+function detour(m, tx, tz) {
+  const R = 0.32, blocked = (ax, az, bx, bz) => SOLIDS.some((s) => crosses(s, ax, az, bx, bz, R));
+  if (!blocked(m.x, m.z, tx, tz)) return { x: tx, z: tz };
+  let best = null, bl = Infinity;
+  for (const s of SOLIDS) {
+    const g = 0.85, x0 = (s.r !== undefined ? s.x - s.r : s.x0) - g, x1 = (s.r !== undefined ? s.x + s.r : s.x1) + g, z0 = (s.r !== undefined ? s.z - s.r : s.z0) - g, z1 = (s.r !== undefined ? s.z + s.r : s.z1) + g;
+    for (const [cx, cz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) {
+      if (cx < WALK.x0 || cx > WALK.x1 || cz < WALK.z0 || cz > WALK.z1 || Math.hypot(cx - m.x, cz - m.z) < 0.3 || blocked(m.x, m.z, cx, cz)) continue;
+      const l = Math.hypot(cx - m.x, cz - m.z) + Math.hypot(tx - cx, tz - cz) + (blocked(cx, cz, tx, tz) ? 3 : 0);
+      if (l < bl) { bl = l; best = { x: cx, z: cz }; }
+    }
+  }
+  return best || { x: tx, z: tz };
+}
+/** Walk toward (tx, tz), round anything in the way; slower while spraying. */
 function walk(m, tx, tz, top, dt) {
-  const dx = tx - m.x, dz = tz - m.z, d = Math.hypot(dx, dz), want = d > 0.15 ? Math.min(top, d * 3) : 0;
+  const go = Math.hypot(tx - m.x, tz - m.z) > 0.15 ? detour(m, tx, tz) : null, far = go && (go.x !== tx || go.z !== tz);
+  if (go) { if (far) top = Math.max(top, CONFIG.speed * CONFIG.botPace); tx = go.x; tz = go.z; }
+  const dx = tx - m.x, dz = tz - m.z, d = Math.hypot(dx, dz), want = d > 0.15 ? Math.min(top, far ? top : d * 3) : 0;
   m.v += clamp(want - m.v, -14 * dt, 10 * dt);
   if (d > 0.01 && m.v > 0) { m.x += (dx / d) * m.v * dt; m.z += (dz / d) * m.v * dt; if (!m.s) m.h = wrap(m.h + clamp(wrap(Math.atan2(dx, dz) - m.h), -10 * dt, 10 * dt)); }
   collide(m);
@@ -751,10 +788,11 @@ function botTick(b, dt, d, mode, who, power) {
   if (lvl === 3) { b.nz = 1; b.nzUntil = t + 1600; } else if (t > b.nzUntil) b.nz = 0;
   if (!b.stand || Math.hypot(b.stand.px - PT.x, b.stand.pz - PT.z) > 1.4) b.stand = standFor(PT, NT, NOZ[b.nz].range);
   // walk to the stand spot (back off and try again when stuck)
+  const wx = b.x, wz = b.z;
   if (b.nudge && t < b.nudge.until) walk(b, b.nudge.x, b.nudge.z, CONFIG.speed * CONFIG.botPace, dt);
   else walk(b, b.stand.x, b.stand.z, CONFIG.speed * CONFIG.botPace * (Math.hypot(b.stand.x - b.x, b.stand.z - b.z) < 1.5 ? CONFIG.sprayWalk : 1), dt);
-  const far = Math.hypot(b.stand.x - b.x, b.stand.z - b.z);
-  b.stuckT = far > 0.6 && b.v < 0.4 ? b.stuckT + dt : 0;
+  const far = Math.hypot(b.stand.x - b.x, b.stand.z - b.z), moved = dt > 0 ? Math.hypot(b.x - wx, b.z - wz) / dt : 1;
+  b.stuckT = far > 0.6 && moved < 0.4 ? b.stuckT + dt : 0; // how far it really got, not how hard it is pushing (a bot against the car pushes at full speed)
   if (b.stuckT > 1.4) { b.stuckT = 0; const a = rnd(0, 6.28); b.nudge = { until: t + 700, x: b.x + Math.sin(a) * 2, z: b.z + Math.cos(a) * 2 }; }
   // aim: glide along the surface toward the spot (a little wobbly, like a person)
   const wob = Math.sin(t / 420 + b.wob) * 0.05, au = u + wob / s.su, av = v + Math.cos(t / 530 + b.wob) * 0.04 / s.sv;
@@ -934,7 +972,7 @@ function makeWasher(color, name) {
   const tip = add(new THREE.CylinderGeometry(0.035, 0.05, 0.1, 8).rotateX(Math.PI / 2), mat("#ffd23f"), 0, 0, 0.64, false, wand);
   for (const s of [1, -1]) add(new THREE.BoxGeometry(0.09, 0.09, 0.32), suit, s * 0.2, 0.86, 0.12, false, body).rotation.x = -0.4;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#000", transparent: true, opacity: 0.2, depthWrite: false })); shadow.position.y = 0.03; g.add(shadow);
-  if (name) { const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex(name), depthTest: false })); tag.scale.set(3.2, 0.8, 1); tag.position.y = 2.0; g.add(tag); }
+  if (name) { const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex(name), depthTest: false })); tag.scale.set(3.2, 0.8, 1); tag.position.y = 2.0; tag.renderOrder = 4; g.add(tag); }
   scene.add(g);
   return { g, body, legs, wand, tip, color, walk: 0 };
 }
@@ -1061,11 +1099,11 @@ function hud(d, now) {
 function bankJob(d) {
   me.banked = d.id;
   const res = d.res.find((x) => x[3] === net.sessionId), n = res ? Math.max(0, res[1]) : 0, list = $("board");
-  if (!board) { list.innerHTML = "<li>Leaderboards need a connection.</li>"; return; }
-  list.innerHTML = "<li>Loading…</li>";
+  if (!board) { list.innerHTML = "<li class=\"msg\">Leaderboards need a connection.</li>"; return; }
+  list.innerHTML = "<li class=\"msg\">Loading…</li>";
   (n > 0 ? board.submit(n).catch(() => null) : Promise.resolve()).then(() => board.top(10)).then(({ entries }) => {
-    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score}</span></li>`).join("") : "<li>No yards yet. Set the first!</li>";
-  }).catch(() => { list.innerHTML = "<li>Couldn't load the leaderboard.</li>"; });
+    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score}</span></li>`).join("") : "<li class=\"msg\">No yards yet. Set the first!</li>";
+  }).catch(() => { list.innerHTML = "<li class=\"msg\">Couldn't load the leaderboard.</li>"; });
 }
 $("again").onclick = () => { overFor = job()?.id ?? -1; };
 // Sound: the washer's hiss while I spray, and the ding. Started by the first key or tap.
